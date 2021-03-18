@@ -1,4 +1,4 @@
-﻿namespace FSharp.Data.GraphQL.Samples.StarWarsApi
+namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
 open System.IO
 open System.Text
@@ -57,7 +57,7 @@ module HttpHandlers =
                 data |> Observable.add (fun d -> printfn "Subscription data: %s" (serialize d))
                 "{}"
 
-        let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")
+        let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace(System.Environment.NewLine, " ")
 
         let readStream (s : Stream) =
             use ms = new MemoryStream (4096)
@@ -95,7 +95,7 @@ module HttpHandlers =
             printfn "Received query: %s" query
             printfn "Received variables: %A" variables
             let query = removeWhitespacesAndLineBreaks query
-            let root = { RequestId = System.Guid.NewGuid().ToString () }
+            let root = { RequestId = System.Guid.NewGuid().ToString(); ServiceProvider = ctx.RequestServices }
             let result = Schema.executor.AsyncExecute (query, root, variables) |> Async.RunSynchronously
             printfn "Result metadata: %A" result.Metadata
             return! okWithStr (json result) next ctx
