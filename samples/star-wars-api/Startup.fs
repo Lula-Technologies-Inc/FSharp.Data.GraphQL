@@ -39,6 +39,4 @@ type Startup private () =
             //.UseMiddleware<GraphQLWebSocketMiddleware<Root>>(Schema.executor, fun () -> { RequestId = Guid.NewGuid().ToString() })
             .UseGiraffe HttpHandlers.webApp
 
-            
-
     member val Configuration : IConfiguration = null with get, set
