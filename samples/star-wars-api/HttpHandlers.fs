@@ -72,7 +72,7 @@ module HttpHandlers =
                     body.Seek(0, SeekOrigin.Begin) |> ignore
                     bytesRead > 0
 
-            if (ctx.Request.Method = System.Net.WebRequestMethods.Http.Get || (not <| hasData ctx))
+            if (ctx.Request.Method = HttpMethods.Get || (not <| hasData ctx))
             then
                 let! result = Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
                 printfn "Result metadata: %A" result.Metadata
