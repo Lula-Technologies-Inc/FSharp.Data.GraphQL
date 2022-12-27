@@ -1,14 +1,14 @@
 namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
+open System
 open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.Http.Json
+open Microsoft.AspNetCore.Server.Kestrel.Core
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
-open Giraffe
-open Microsoft.Extensions.Logging
-open System
-open Microsoft.AspNetCore.Server.Kestrel.Core
 open Microsoft.Extensions.Hosting
-open Microsoft.AspNetCore.Http.Json
+open Microsoft.Extensions.Logging
+open Giraffe
 open FSharp.Data.GraphQL
 
 type Startup private () =

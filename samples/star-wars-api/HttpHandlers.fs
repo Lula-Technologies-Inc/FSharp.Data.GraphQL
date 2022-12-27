@@ -60,22 +60,22 @@ module HttpHandlers =
 
             let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")
 
-
             let hasData (context: HttpContext) =
                 let request = context.Request
                 if request.Body.CanSeek then
                     request.Body.Length > 0L
                 else
-                    ctx.Request.EnableBuffering()
+                    request.EnableBuffering()
+                    let body = request.Body
                     let buffer = Array.zeroCreate 1
-                    let value = request.Body.Read(buffer, 0, 1)
-                    ctx.Request.Body.Seek(0, SeekOrigin.Begin) |> ignore
-                    value > 0
+                    let bytesRead = body.Read(buffer, 0, 1)
+                    body.Seek(0, SeekOrigin.Begin) |> ignore
+                    bytesRead > 0
 
             // TODO: Figure out how to check if body is empty
             // TODO: Return introspection on GET
             //http context replace network stream with buffered stream
-            if (hasData ctx = false || ctx.Request.Method = "GET")
+            if (ctx.Request.Method = System.Net.WebRequestMethods.Http.Get || hasData ctx = false)
             then
                 let! result = Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
                 printfn "Result metadata: %A" result.Metadata
