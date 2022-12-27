@@ -72,10 +72,7 @@ module HttpHandlers =
                     body.Seek(0, SeekOrigin.Begin) |> ignore
                     bytesRead > 0
 
-            // TODO: Figure out how to check if body is empty
-            // TODO: Return introspection on GET
-            //http context replace network stream with buffered stream
-            if (ctx.Request.Method = System.Net.WebRequestMethods.Http.Get || hasData ctx = false)
+            if (ctx.Request.Method = System.Net.WebRequestMethods.Http.Get || (not <| hasData ctx))
             then
                 let! result = Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
                 printfn "Result metadata: %A" result.Metadata
