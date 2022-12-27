@@ -7,7 +7,6 @@ open Giraffe
 open Microsoft.Extensions.Logging
 open System
 open Microsoft.AspNetCore.Server.Kestrel.Core
-open GraphQL.Server.Ui.Playground
 open Microsoft.Extensions.Hosting
 open Microsoft.AspNetCore.Http.Json
 open FSharp.Data.GraphQL
