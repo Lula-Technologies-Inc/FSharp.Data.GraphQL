@@ -9,6 +9,8 @@ open System
 open Microsoft.AspNetCore.Server.Kestrel.Core
 open GraphQL.Server.Ui.Playground
 open Microsoft.Extensions.Hosting
+open Microsoft.AspNetCore.Http.Json
+open FSharp.Data.GraphQL
 
 type Startup private () =
     new (configuration: IConfiguration) as this =
@@ -19,21 +21,25 @@ type Startup private () =
         services.AddGiraffe()
                 .Configure(Action<KestrelServerOptions>(fun x -> x.AllowSynchronousIO <- true))
                 .Configure(Action<IISServerOptions>(fun x -> x.AllowSynchronousIO <- true))
+                .Configure<JsonOptions>(Action<JsonOptions>(fun s -> (Json.configureOptions Seq.empty s.SerializerOptions) |> ignore))
+                .AddSingleton<Json.ISerializer>(SystemTextJson.Serializer(Json.serializerOptions))
         |> ignore
 
     member _.Configure(app: IApplicationBuilder, env: IHostEnvironment) =
         let errorHandler (ex : Exception) (log : ILogger) =
             log.LogError(EventId(), ex, "An unhandled exception has occurred while executing the request.")
             clearResponse >=> setStatusCode 500
+
+        if env.IsDevelopment() then
+            app.UseGraphQLPlayground("/playground") |> ignore
+            app.UseGraphQLVoyager("/voyager") |> ignore
+
         app
             .UseGiraffeErrorHandler(errorHandler)
             .UseWebSockets()
             //.UseMiddleware<GraphQLWebSocketMiddleware<Root>>(Schema.executor, fun () -> { RequestId = Guid.NewGuid().ToString() })
             .UseGiraffe HttpHandlers.webApp
 
-        if env.IsDevelopment() then
-            app.UseGraphQLPlayground("/") |> ignore
-            app.UseGraphQLVoyager("/LaunchUrl") |> ignore
             
 
     member val Configuration : IConfiguration = null with get, set

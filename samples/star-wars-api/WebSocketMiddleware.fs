@@ -154,9 +154,9 @@ type GraphQLWebSocketMiddleware<'Root>(next : RequestDelegate, executor : Execut
         task {
             match ctx.WebSockets.IsWebSocketRequest with
             | true ->
-                let! socket = ctx.WebSockets.AcceptWebSocketAsync("graphql-ws") |> Async.AwaitTask
+                let! socket = ctx.WebSockets.AcceptWebSocketAsync("graphql-ws")
                 use socket = new GraphQLWebSocket(socket)
-                do! SocketManager.startSocket socket executor root ctx.RequestAborted
+                do! SocketManager.startSocket socket executor root CancellationToken.None //ctx.RequestAborted
             | false ->
                 next.Invoke(ctx) |> ignore
         }
