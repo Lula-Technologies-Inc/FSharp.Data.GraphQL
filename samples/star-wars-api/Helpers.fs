@@ -21,3 +21,17 @@ module StringHelpers =
     let utf8Bytes (str : string) = str |> Encoding.UTF8.GetBytes
 
     let isNullOrWhiteSpace (str : string) = String.IsNullOrWhiteSpace (str)
+
+    
+    open Microsoft.Extensions.DependencyInjection
+    open Microsoft.Extensions.Logging
+
+    type IServiceProvider with
+        member sericeProvider.CreateLogger (``type`` : Type) =
+            let loggerFactory = sericeProvider.GetRequiredService<ILoggerFactory>()
+            loggerFactory.CreateLogger(``type``)
+    open Microsoft.FSharp.Quotations.Patterns
+
+    let getModuleType = function
+        | PropertyGet (_, propertyInfo, _) -> propertyInfo.DeclaringType
+        | _ -> failwith "Expression is no property."
