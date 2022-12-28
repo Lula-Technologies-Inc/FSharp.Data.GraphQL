@@ -60,9 +60,20 @@ module HttpHandlers =
 
             let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")
 
-            // TODO: Figure out how to check if body is empty
-            // TODO: Return introspection on GET
-            if ctx.Request.Body.Length = 0
+            let request = ctx.Request
+
+            let hasData () =
+                if request.Body.CanSeek then
+                    request.Body.Length > 0L
+                else
+                    request.EnableBuffering()
+                    let body = request.Body
+                    let buffer = Array.zeroCreate 1
+                    let bytesRead = body.Read(buffer, 0, 1)
+                    body.Seek(0, SeekOrigin.Begin) |> ignore
+                    bytesRead > 0
+
+            if (request.Method = HttpMethods.Get || not <| hasData ())
             then
                 let! result = Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
                 printfn "Result metadata: %A" result.Metadata
@@ -96,4 +107,4 @@ module HttpHandlers =
         }
         |> ofTaskIResult ctx
 
-    let webApp : HttpHandler = setCorsHeaders >=> graphQL
+    let webApp : HttpHandler = setCorsHeaders >=> choose [ POST; GET ] >=> graphQL
