@@ -55,7 +55,7 @@ module HttpHandlers =
                       Errors = errs }
                 | Deferred (data, errs, deferred) ->
                     if not <| logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace("Produced deferred GraphQL response with documentId = '{documentId}' and data = {data} and deferred = {deferred}", documentId, data, deferred)
+                        logger.LogTrace("Produced deferred GraphQL response with documentId = '{documentId}' and data = {data}", documentId, data)
                         deferred |> Observable.add (fun d -> logger.LogTrace("Deferred: {d}", (JsonSerializer.Serialize(d, Json.serializerOptions))))
                     { DocumentId = documentId
                       Data = data
@@ -85,6 +85,7 @@ module HttpHandlers =
 
             if (request.Method = HttpMethods.Get || not <| hasData ())
             then
+                logger.LogInformation("Executing GraphQL introspection query")
                 let! result = Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
                 logger.LogTrace("Producing GraphQL introspection result with documentId = '{documentId}' and data = {data} and metadata = {metadata}", result.DocumentId, result.Content, result.Metadata)
                 let response = toResponse result.DocumentId result.Content
@@ -95,7 +96,7 @@ module HttpHandlers =
             let! request = JsonSerializer.DeserializeAsync<GQLRequestContent>(ctx.Request.Body, Json.serializerOptions)
             let query = request.Query
 
-            logger.LogTrace($"GraphQL query:{Environment.NewLine}{{query}}", query)
+            logger.LogTrace($"Executing GraphQL query:{Environment.NewLine}{{query}}", query)
             let operationName = request.OperationName |> Skippable.toOption
             operationName |> Option.iter (fun on -> logger.LogTrace("GraphQL operation name: '{operationName}'", on))
             let variables = request.Variables |> Skippable.toOption
