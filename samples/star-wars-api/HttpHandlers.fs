@@ -5,20 +5,19 @@ open System.IO
 open System.Text
 open System.Text.Json
 open System.Threading.Tasks
-open Giraffe
+open Microsoft.Extensions.Logging
 open Microsoft.AspNetCore.Http
+open Giraffe
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
-open Microsoft.Extensions.Logging
 
 type HttpHandler = HttpFunc -> HttpContext -> HttpFuncResult
 
 type private GQLRequestContent =
     { Query : string
-      // TODO: Add OperationName handling
       OperationName : string voption
       Variables : ImmutableDictionary<string, JsonElement> voption }
-      
+
 module HttpHandlers =
 
     let rec private moduleType = getModuleType <@ moduleType @>
@@ -47,18 +46,18 @@ module HttpHandlers =
             let toResponse documentId =
                 function
                 | Direct   (data, errs) ->
-                    logger.LogInformation($"GraphQL toResponse Direct with documentId = '{documentId}', Data = {JsonSerializer.Serialize(data, Json.serializerOptions)}")
+                    logger.LogInformation("Produced direct GraphQL response with documentId = '{documentId}' and data = {data}", documentId, data)
                     { DocumentId = documentId
                       Data = data
                       Errors = errs }
                 | Deferred (data, errs, deferred) ->
-                    logger.LogInformation($"GraphQL toResponse Deferred with documentId = '{documentId}', Data = {JsonSerializer.Serialize(data, Json.serializerOptions)}")
+                    logger.LogInformation("Produced deferred GraphQL response with documentId = '{documentId}' and data = {data}", documentId, data)
                     deferred |> Observable.add (fun d -> printfn "Deferred: %s" (JsonSerializer.Serialize(d, Json.serializerOptions)))
                     { DocumentId = documentId
                       Data = data
                       Errors = errs }
                 | Stream data ->
-                    logger.LogInformation($"GraphQL toResponse Stream with documentId = '{documentId}', Data = {JsonSerializer.Serialize(data, Json.serializerOptions)}")
+                    logger.LogInformation("Produced stream GraphQL response with documentId = '{documentId}' and data = {data}", documentId, data)
                     data |> Observable.add (fun d -> printfn "Subscription data: %s" (JsonSerializer.Serialize(d, Json.serializerOptions)))
                     { DocumentId = documentId
                       Data = null
@@ -82,7 +81,9 @@ module HttpHandlers =
             if (request.Method = HttpMethods.Get || not <| hasData ())
             then
                 let! result = Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
+
                 logger.LogInformation($"GraphQL Result metadata: '{result.Metadata}'")
+                logger.LogInformation("Produced GraphQL introspection result with documentId = '{documentId}' and data = {data} and metadata = {metadata}", result.DocumentId, result.Content, result.Metadata)
                 let response = toResponse result.DocumentId result.Content
                 return Results.Ok response
             else
@@ -93,18 +94,18 @@ module HttpHandlers =
             return!
                 match request.Variables with
                 | ValueSome variables -> task {
-                        logger.LogInformation($"GraphQL Received query: '{query}', variables = {variables}")
+                        logger.LogInformation("GraphQL Received query: '{query}', variables = {variables}", query, variables)
                         let query = removeWhitespacesAndLineBreaks query
                         let root = { RequestId = System.Guid.NewGuid().ToString () }
-                        let! result = Schema.executor.AsyncExecute (query, root, variables)
+                        let! result = Schema.executor.AsyncExecute (query, root, variables, request.OperationName.Value)
                         logger.LogInformation($"GraphQL Result metadata: '{result.Metadata}'")
                         let response = toResponse result.DocumentId result.Content
                         return Results.Ok response
                     }
                 | ValueNone -> task {
-                        logger.LogInformation($"GraphQL Received query: '{query}', variables = none")
+                        logger.LogInformation("GraphQL Received query: '{query}', variables = none", query)
                         let query = removeWhitespacesAndLineBreaks query
-                        let! result = Schema.executor.AsyncExecute (query)
+                        let! result = Schema.executor.AsyncExecute (query, operationName = request.OperationName.Value)
                         logger.LogInformation($"GraphQL Result metadata: '{result.Metadata}'")
                         let response = toResponse result.DocumentId result.Content
                         return Results.Ok response
