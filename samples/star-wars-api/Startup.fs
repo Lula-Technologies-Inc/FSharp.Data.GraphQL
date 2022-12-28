@@ -1,13 +1,15 @@
 namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
+open System
 open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.Http.Json
+open Microsoft.AspNetCore.Server.Kestrel.Core
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
-open Giraffe
+open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
-open System
-open Microsoft.AspNetCore.Server.Kestrel.Core
-open System.Threading
+open Giraffe
+open FSharp.Data.GraphQL
 
 type Startup private () =
     new (configuration: IConfiguration) as this =
@@ -18,12 +20,19 @@ type Startup private () =
         services.AddGiraffe()
                 .Configure(Action<KestrelServerOptions>(fun x -> x.AllowSynchronousIO <- true))
                 .Configure(Action<IISServerOptions>(fun x -> x.AllowSynchronousIO <- true))
+                .Configure<JsonOptions>(Action<JsonOptions>(fun s -> (Json.configureOptions Seq.empty s.SerializerOptions) |> ignore))
+                .AddSingleton<Json.ISerializer>(SystemTextJson.Serializer(Json.serializerOptions))
         |> ignore
 
-    member _.Configure(app: IApplicationBuilder) =
+    member _.Configure(app: IApplicationBuilder, env: IHostEnvironment) =
         let errorHandler (ex : Exception) (log : ILogger) =
             log.LogError(EventId(), ex, "An unhandled exception has occurred while executing the request.")
             clearResponse >=> setStatusCode 500
+
+        if env.IsDevelopment() then
+            app.UseGraphQLPlayground("/playground") |> ignore
+            app.UseGraphQLVoyager("/voyager") |> ignore
+
         app
             .UseGiraffeErrorHandler(errorHandler)
             .UseWebSockets()
