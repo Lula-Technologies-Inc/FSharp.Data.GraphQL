@@ -66,8 +66,9 @@ module HttpHandlers =
 
             let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")
 
-            let hasData (context: HttpContext) =
-                let request = context.Request
+            let request = ctx.Request
+
+            let hasData () =
                 if request.Body.CanSeek then
                     request.Body.Length > 0L
                 else
@@ -78,7 +79,7 @@ module HttpHandlers =
                     body.Seek(0, SeekOrigin.Begin) |> ignore
                     bytesRead > 0
 
-            if (ctx.Request.Method = HttpMethods.Get || (not <| hasData ctx))
+            if (request.Method = HttpMethods.Get || not <| hasData ())
             then
                 let! result = Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
                 logger.LogInformation($"GraphQL Result metadata: '{result.Metadata}'")
