@@ -54,7 +54,7 @@ let rec internal compileByType (errMsg : string) (inputDef : InputDef) : Execute
                     objdef.Fields
                     |> Array.tryFind (fun field -> field.Name = param.Name)
                 with
-                | Some x -> x
+                | Some field -> (field, param)
                 | None ->
                     failwithf
                         "Input object '%s' refers to type '%O', but constructor parameter '%s' doesn't match any of the defined input fields"
@@ -67,7 +67,7 @@ let rec internal compileByType (errMsg : string) (inputDef : InputDef) : Execute
             | ObjectValue props ->
                 let args =
                     mapper
-                    |> Array.map (fun field ->
+                    |> Array.map (fun (field, param) ->
                         match Map.tryFind field.Name props with
                         | None -> null
                         | Some prop -> field.ExecuteInput prop variables)
@@ -78,14 +78,32 @@ let rec internal compileByType (errMsg : string) (inputDef : InputDef) : Execute
                 match variables.TryGetValue variableName with
                 | true, found ->
                     // TODO: Figure out how does this happen
-                    if found.GetType() = typeof<option<_>>.GetGenericTypeDefinition().MakeGenericType(objdef.Type) then found
+                    let optionType = typeof<option<_>>.GetGenericTypeDefinition().MakeGenericType(objdef.Type)
+                    //let voptionType = typeof<voption<_>>.GetGenericTypeDefinition().MakeGenericType(objdef.Type)
+                    if found.GetType() = optionType then found
+                    //elif found.GetType() = voptionType then found
                     else
                     let variables = found :?> ImmutableDictionary<string, obj>
                     let args =
                         mapper
-                        |> Array.map (fun field ->
+                        |> Array.map (fun (field, param) ->
                             match variables.TryGetValue field.Name with
-                            | true, value -> value
+                            | true, value ->
+                                let paramType = param.ParameterType
+                                if paramType.IsGenericType && paramType.GetGenericTypeDefinition() = typeof<voption<_>>.GetGenericTypeDefinition() then
+                                    let valuesome, valuenone, _ = ReflectionHelper.vOptionOfType field.TypeDef.Type.GenericTypeArguments[0]
+                                    match value with
+                                    | null -> valuenone
+                                    | _ ->
+                                        let valueType = value.GetType()
+                                        if valueType.IsGenericType && valueType.GetGenericTypeDefinition() = typeof<option<_>>.GetGenericTypeDefinition()
+                                        then
+                                            let _, _, getValue = ReflectionHelper.optionOfType valueType.GenericTypeArguments[0]
+                                            value |> getValue |> valuesome
+                                        else
+                                            value |> valuesome
+                                else
+                                    value
                             | false, _ -> null)
 
                     let instance = ctor.Invoke (args)

@@ -16,6 +16,7 @@ open FSharp.Quotations
 open FSharp.Quotations.Patterns
 open FSharp.Reflection
 open FSharp.Linq.RuntimeHelpers
+open System.Text.Json
 
 /// Enum describing parts of the GraphQL query document AST, where
 /// related directive is valid to be used.
@@ -2275,9 +2276,10 @@ module SchemaDefinitions =
     open System.Reflection
 
     /// Tries to convert any value to int.
-    let private coerceIntValue (x : obj) : int option =
+    let coerceIntValue (x : obj) : int option =
         match x with
         | null -> None
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.Number -> Some (e.GetInt32())
         | :? int as i -> Some i
         | :? int64 as l -> Some(int l)
         | :? double as d -> Some(int d)
@@ -2294,9 +2296,10 @@ module SchemaDefinitions =
             with _ -> None
 
     /// Tries to convert any value to int64.
-    let private coerceLongValue (x : obj) : int64 option =
+    let coerceLongValue (x : obj) : int64 option =
         match x with
         | null -> None
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.Number -> Some (e.GetInt64())
         | :? int as i -> Some (int64 i)
         | :? int64 as l -> Some(l)
         | :? double as d -> Some(int64 d)
@@ -2312,9 +2315,10 @@ module SchemaDefinitions =
             with _ -> None
 
     /// Tries to convert any value to double.
-    let private coerceFloatValue (x : obj) : double option =
+    let coerceFloatValue (x : obj) : double option =
         match x with
         | null -> None
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.Number -> Some (e.GetDouble())
         | :? int as i -> Some(double i)
         | :? int64 as l -> Some(double l)
         | :? double as d -> Some d
@@ -2331,9 +2335,11 @@ module SchemaDefinitions =
             with _ -> None
 
     /// Tries to convert any value to bool.
-    let private coerceBoolValue (x : obj) : bool option =
+    let coerceBoolValue (x : obj) : bool option =
         match x with
         | null -> None
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.True -> Some true
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.False -> Some false
         | :? int as i -> Some(i <> 0)
         | :? int64 as l -> Some(l <> 0L)
         | :? double as d -> Some(d <> 0.)
@@ -2348,9 +2354,13 @@ module SchemaDefinitions =
             with _ -> None
 
     /// Tries to convert any value to URI.
-    let private coerceUriValue (x : obj) : Uri option =
+    let coerceUriValue (x : obj) : Uri option =
         match x with
         | null -> None
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.String ->
+            match Uri.TryCreate(e.GetString(), UriKind.RelativeOrAbsolute) with
+            | true, uri -> Some uri
+            | false, _ -> None
         | :? Uri as u -> Some u
         | :? string as s ->
             match Uri.TryCreate(s, UriKind.RelativeOrAbsolute) with
@@ -2359,8 +2369,13 @@ module SchemaDefinitions =
         | other -> None
 
     /// Tries to convert any value to DateTime.
-    let private coerceDateValue (x : obj) : DateTime option =
+    let coerceDateValue (x : obj) : DateTime option =
         match x with
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.String ->
+            let s = e.GetString()
+            match DateTime.TryParse(s) with
+            | true, date -> Some date
+            | false, _ -> None
         | null -> None
         | :? DateTime as d -> Some d
         | :? string as s ->
@@ -2370,9 +2385,14 @@ module SchemaDefinitions =
         | other -> None
 
     /// Tries to convert any value to Guid.
-    let private coerceGuidValue (x : obj) : Guid option =
+    let coerceGuidValue (x : obj) : Guid option =
         match x with
         | null -> None
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.String ->
+            let s = e.GetString()
+            match Guid.TryParse(s) with
+            | true, guid -> Some guid
+            | false, _ -> None
         | :? Guid as g -> Some g
         | :? string as s ->
             match Guid.TryParse(s) with
@@ -2401,15 +2421,17 @@ module SchemaDefinitions =
         | _ -> Some(x.ToString())
 
     /// Tries to convert any value to generic type parameter.
-    let private coerceIDValue (x : obj) : 't option =
+    let coerceIDValue (x : obj) : 't option =
         match x with
         | null -> None
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.String -> Some (downcast Convert.ChangeType(e.GetString() , typeof<'t>))
+        | :? JsonElement as e when e.ValueKind = JsonValueKind.Number -> Some (downcast Convert.ChangeType(e.GetInt32() , typeof<'t>))
         | :? string as s -> Some (downcast Convert.ChangeType(s, typeof<'t>))
         | Option o -> Some(downcast Convert.ChangeType(o, typeof<'t>))
         | _ -> Some(downcast Convert.ChangeType(x, typeof<'t>))
 
     /// Tries to resolve AST query input to int.
-    let private coerceIntInput =
+    let coerceIntInput =
         function
         | IntValue i -> Some (int i)
         | FloatValue f -> Some(int f)
@@ -2423,7 +2445,7 @@ module SchemaDefinitions =
         | _ -> None
 
     /// Tries to resolve AST query input to int64.
-    let private coerceLongInput =
+    let coerceLongInput =
         function
         | IntValue i -> Some (int64 i)
         | FloatValue f -> Some(int64 f)
@@ -2436,7 +2458,7 @@ module SchemaDefinitions =
         | _ -> None
 
     /// Tries to resolve AST query input to double.
-    let private coerceFloatInput =
+    let coerceFloatInput =
         function
         | IntValue i -> Some(double i)
         | FloatValue f -> Some f
@@ -2482,14 +2504,14 @@ module SchemaDefinitions =
         | _ -> None
 
     /// Tries to resolve AST query input to provided generic type.
-    let private coerceIdInput input : 't option=
+    let coerceIdInput input : 't option=
         match input with
         | IntValue i -> Some(downcast Convert.ChangeType(i, typeof<'t>))
         | StringValue s -> Some(downcast Convert.ChangeType(s, typeof<'t>))
         | _ -> None
 
     /// Tries to resolve AST query input to URI.
-    let private coerceUriInput =
+    let coerceUriInput =
         function
         | StringValue s ->
             match Uri.TryCreate(s, UriKind.RelativeOrAbsolute) with
@@ -2498,7 +2520,7 @@ module SchemaDefinitions =
         | _ -> None
 
     /// Tries to resolve AST query input to DateTime.
-    let private coerceDateInput =
+    let coerceDateInput =
         function
         | StringValue s ->
             match DateTime.TryParse(s) with
@@ -2507,7 +2529,7 @@ module SchemaDefinitions =
         | _ -> None
 
     /// Tries to resolve AST query input to Guid.
-    let private coerceGuidInput =
+    let coerceGuidInput =
         function
         | StringValue s ->
             match Guid.TryParse(s) with
