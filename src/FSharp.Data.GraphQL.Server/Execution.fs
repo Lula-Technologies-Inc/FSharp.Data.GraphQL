@@ -517,7 +517,9 @@ let internal compileField (fieldDef: FieldDef) : ExecuteField =
             try resolve resolveFieldCtx value |> AsyncVal.wrap
             with e -> AsyncVal.Failure(e)
     | Resolve.BoxedAsync(_, _, resolve) ->
-        fun resolveFieldCtx value -> asyncVal.Return (resolve resolveFieldCtx value)
+        fun resolveFieldCtx value -> asyncVal {
+                return! resolve resolveFieldCtx value
+            }
     | Resolve.BoxedExpr (resolve) ->
         fun resolveFieldCtx value -> downcast resolve resolveFieldCtx value
     | _ ->
