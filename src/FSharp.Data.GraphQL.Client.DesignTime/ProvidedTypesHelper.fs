@@ -20,6 +20,7 @@ open Microsoft.FSharp.Reflection
 open System.Collections
 
 module internal QuotationHelpers =
+
     let rec coerceValues fieldTypeLookup fields =
         let arrayExpr (arrayType : Type) (v : obj) =
             let typ = arrayType.GetElementType()
@@ -500,8 +501,8 @@ module internal Provider =
         let includeType (path : string list) (t : ProvidedTypeDefinition) =
             let wrapper = getWrapper path
             wrapper.AddMember(t)
-        let providedTypes = Dictionary<Path * TypeName, ProvidedTypeDefinition>()
-        let rec getProvidedType (providedTypes : Dictionary<Path * TypeName, ProvidedTypeDefinition>) (schemaTypes : Map<TypeName, IntrospectionType>) (path : Path) (astFields : AstFieldInfo list) (tref : IntrospectionTypeRef) : Type =
+        let providedTypes = Dictionary<FieldPath * TypeName, ProvidedTypeDefinition>()
+        let rec getProvidedType (providedTypes : Dictionary<FieldPath * TypeName, ProvidedTypeDefinition>) (schemaTypes : Map<TypeName, IntrospectionType>) (path : FieldPath) (astFields : AstFieldInfo list) (tref : IntrospectionTypeRef) : Type =
             match tref.Kind with
             | TypeKind.SCALAR when tref.Name.IsSome -> TypeMapping.mapScalarType uploadInputTypeName tref.Name.Value |> TypeMapping.makeOption
             | _ when uploadInputTypeName.IsSome && tref.Name.IsSome && uploadInputTypeName.Value = tref.Name.Value -> uploadTypeIsNotScalar uploadInputTypeName.Value

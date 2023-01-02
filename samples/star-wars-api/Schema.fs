@@ -140,12 +140,12 @@ module Schema =
             isTypeOf = (fun o -> o :? Human),
             fieldsFn = fun () ->
             [
-                Define.Field("id", String, "The id of the human.", fun _ (h : Human) -> h.Id)
-                Define.Field("name", Nullable String, "The name of the human.", fun _ (h : Human) -> h.Name)
+                Define.Field("id", StringType, "The id of the human.", fun _ (h : Human) -> h.Id)
+                Define.Field("name", Nullable StringType, "The name of the human.", fun _ (h : Human) -> h.Name)
                 Define.Field("friends", ListOf (Nullable CharacterType), "The friends of the human, or an empty list if they have none.",
                     fun _ (h : Human) -> h.Friends |> List.map getCharacter |> List.toSeq).WithQueryWeight(0.5)
                 Define.Field("appearsIn", ListOf EpisodeType, "Which movies they appear in.", fun _ (h : Human) -> h.AppearsIn)
-                Define.Field("homePlanet", Nullable String, "The home planet of the human, or null if unknown.", fun _ h -> h.HomePlanet)
+                Define.Field("homePlanet", Nullable StringType, "The home planet of the human, or null if unknown.", fun _ h -> h.HomePlanet)
             ])
 
     and DroidType =
@@ -155,12 +155,12 @@ module Schema =
             isTypeOf = (fun o -> o :? Droid),
             fieldsFn = fun () ->
             [
-                Define.Field("id", String, "The id of the droid.", fun _ (d : Droid) -> d.Id)
-                Define.Field("name", Nullable String, "The name of the Droid.", fun _ (d : Droid) -> d.Name)
+                Define.Field("id", StringType, "The id of the droid.", fun _ (d : Droid) -> d.Id)
+                Define.Field("name", Nullable StringType, "The name of the Droid.", fun _ (d : Droid) -> d.Name)
                 Define.Field("friends", ListOf (Nullable CharacterType), "The friends of the Droid, or an empty list if they have none.",
                     fun _ (d : Droid) -> d.Friends |> List.map getCharacter |> List.toSeq).WithQueryWeight(0.5)
                 Define.Field("appearsIn", ListOf EpisodeType, "Which movies they appear in.", fun _ d -> d.AppearsIn)
-                Define.Field("primaryFunction", Nullable String, "The primary function of the droid.", fun _ d -> d.PrimaryFunction)
+                Define.Field("primaryFunction", Nullable StringType, "The primary function of the droid.", fun _ d -> d.PrimaryFunction)
             ])
 
     and PlanetType =
@@ -170,9 +170,9 @@ module Schema =
             isTypeOf = (fun o -> o :? Planet),
             fieldsFn = fun () ->
             [
-                Define.Field("id", String, "The id of the planet", fun _ p -> p.Id)
-                Define.Field("name", Nullable String, "The name of the planet.", fun _ p -> p.Name)
-                Define.Field("isMoon", Nullable Boolean, "Is that a moon?", fun _ p -> p.IsMoon)
+                Define.Field("id", StringType, "The id of the planet", fun _ p -> p.Id)
+                Define.Field("name", Nullable StringType, "The name of the planet.", fun _ p -> p.Name)
+                Define.Field("isMoon", Nullable BooleanType, "Is that a moon?", fun _ p -> p.IsMoon)
             ])
 
     and RootType =
@@ -182,16 +182,16 @@ module Schema =
             isTypeOf = (fun o -> o :? Root),
             fieldsFn = fun () ->
             [
-                Define.Field("requestId", String, "The ID of the client.", fun _ (r : Root) -> r.RequestId)
+                Define.Field("requestId", StringType, "The ID of the client.", fun _ (r : Root) -> r.RequestId)
             ])
 
     let Query =
         Define.Object<Root>(
             name = "Query",
             fields = [
-                Define.Field("hero", Nullable HumanType, "Gets human hero", [ Define.Input("id", String) ], fun ctx _ -> getHuman (ctx.Arg("id")))
-                Define.Field("droid", Nullable DroidType, "Gets droid", [ Define.Input("id", String) ], fun ctx _ -> getDroid (ctx.Arg("id")))
-                Define.Field("planet", Nullable PlanetType, "Gets planet", [ Define.Input("id", String) ], fun ctx _ -> getPlanet (ctx.Arg("id")))
+                Define.Field("hero", Nullable HumanType, "Gets human hero", [ Define.Input("id", StringType) ], fun ctx _ -> getHuman (ctx.Arg("id")))
+                Define.Field("droid", Nullable DroidType, "Gets droid", [ Define.Input("id", StringType) ], fun ctx _ -> getDroid (ctx.Arg("id")))
+                Define.Field("planet", Nullable PlanetType, "Gets planet", [ Define.Input("id", StringType) ], fun ctx _ -> getPlanet (ctx.Arg("id")))
                 Define.Field("characters", ListOf CharacterType, "Gets characters", fun _ _ -> characters) ])
 
     let Subscription =
@@ -203,7 +203,7 @@ module Schema =
                     RootType,
                     PlanetType,
                     "Watches to see if a planet is a moon.",
-                    [ Define.Input("id", String) ],
+                    [ Define.Input("id", StringType) ],
                     (fun ctx _ p -> if ctx.Arg("id") = p.Id then Some p else None)) ])
 
     let schemaConfig = SchemaConfig.Default
@@ -216,7 +216,7 @@ module Schema =
                     "setMoon",
                     Nullable PlanetType,
                     "Defines if a planet is actually a moon or not.",
-                    [ Define.Input("id", String); Define.Input("isMoon", Boolean) ],
+                    [ Define.Input("id", StringType); Define.Input("isMoon", BooleanType) ],
                     fun ctx _ ->
                         getPlanet (ctx.Arg("id"))
                         |> Option.map (fun x ->

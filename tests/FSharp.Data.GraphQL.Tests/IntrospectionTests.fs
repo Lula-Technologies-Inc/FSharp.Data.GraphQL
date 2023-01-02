@@ -41,8 +41,8 @@ let inputFieldQuery = """{
 [<Fact>]
 let ``Input field should be marked as nullable when defaultValue is provided`` () =
     let root = Define.Object("Query", [
-        Define.Field("onlyField", String, "The only field", [
-            Define.Input("in", String, defaultValue = "1")
+        Define.Field("onlyField", StringType, "The only field", [
+            Define.Input("in", StringType, defaultValue = "1")
         ], fun _ _ -> "Only value")
     ])
     let schema = Schema(root)
@@ -75,8 +75,8 @@ let ``Input field should be marked as nullable when defaultValue is provided`` (
 [<Fact>]
 let ``Input field should be marked as non-nullable when defaultValue is not provided`` () =
     let root = Define.Object("Query", [
-        Define.Field("onlyField", String, "The only field", [
-            Define.Input("in", String)
+        Define.Field("onlyField", StringType, "The only field", [
+            Define.Input("in", StringType)
         ], fun _ _ -> "Only value")
     ])
     let schema = Schema(root)
@@ -109,8 +109,8 @@ let ``Input field should be marked as non-nullable when defaultValue is not prov
 [<Fact>]
 let ``Input field should be marked as nullable when its type is nullable`` () =
     let root = Define.Object("Query", [
-        Define.Field("onlyField", String, "The only field", [
-            Define.Input("in", Nullable String)
+        Define.Field("onlyField", StringType, "The only field", [
+            Define.Input("in", Nullable StringType)
         ], fun _ _ -> "Only value")
     ])
     let schema = Schema(root)
@@ -143,8 +143,8 @@ let ``Input field should be marked as nullable when its type is nullable`` () =
 [<Fact>]
 let ``Input field should be marked as nullable when its type is nullable and have default value provided`` () =
     let root = Define.Object("Query", [
-        Define.Field("onlyField", String, "The only field", [
-            Define.Input("in", Nullable String, defaultValue = Some "1")
+        Define.Field("onlyField", StringType, "The only field", [
+            Define.Input("in", Nullable StringType, defaultValue = Some "1")
         ], fun _ _ -> "Only value")
     ])
     let schema = Schema(root)
@@ -176,7 +176,7 @@ let ``Input field should be marked as nullable when its type is nullable and hav
 
 [<Fact>]
 let ``Introspection schema should be serializable back and forth using json`` () =
-    let root = Define.Object("Query", [ Define.Field("onlyField", String) ])
+    let root = Define.Object("Query", [ Define.Field("onlyField", StringType) ])
     let schema = Schema(root)
     let query = """query IntrospectionQuery {
       __schema {
@@ -291,7 +291,7 @@ let ``Introspection schema should be serializable back and forth using json`` ()
 
 [<Fact>]
 let ``Core type definitions are considered nullable`` () =
-    let root = Define.Object("Query", [ Define.Field("onlyField", String) ])
+    let root = Define.Object("Query", [ Define.Field("onlyField", StringType) ])
     let schema = Schema(root)
     let query = """{ __type(name: "String") {
       kind
@@ -329,11 +329,11 @@ type UserInput = { Name: string }
 let ``Introspection works with query and mutation sharing same generic param`` =
     let user =
         Define.Object<User>("User",
-            [ Define.AutoField("firstName", String)
-              Define.AutoField("lastName", String) ])
+            [ Define.AutoField("firstName", StringType)
+              Define.AutoField("lastName", StringType) ])
     let userInput =
         Define.InputObject<UserInput>("UserInput",
-            [ Define.Input("name", String) ])
+            [ Define.Input("name", StringType) ])
     let query =
         Define.Object<User list>("Query",
             [ Define.Field("users", ListOf user, "Query object", [ Define.Input("input", userInput) ], fun _ u -> u) ])
@@ -345,7 +345,7 @@ let ``Introspection works with query and mutation sharing same generic param`` =
 
 [<Fact>]
 let ``Default field type definitions are considered non-null`` () =
-    let root = Define.Object("Query", [ Define.Field("onlyField", String) ])
+    let root = Define.Object("Query", [ Define.Field("onlyField", StringType) ])
     let schema = Schema(root)
     let query = """{ __type(name: "Query") {
       fields {
@@ -390,7 +390,7 @@ let ``Default field type definitions are considered non-null`` () =
 
 [<Fact>]
 let ``Nullabe field type definitions are considered nullable`` () =
-    let root = Define.Object("Query", [ Define.Field("onlyField", Nullable String) ])
+    let root = Define.Object("Query", [ Define.Field("onlyField", Nullable StringType) ])
     let schema = Schema(root)
     let query = """{ __type(name: "Query") {
       fields {
@@ -432,7 +432,7 @@ let ``Nullabe field type definitions are considered nullable`` () =
 
 [<Fact>]
 let ``Default field args type definitions are considered non-null`` () =
-    let root = Define.Object("Query", [ Define.Field("onlyField", String, "", [ Define.Input("onlyArg", Int) ], fun _ () -> null) ])
+    let root = Define.Object("Query", [ Define.Field("onlyField", StringType, "", [ Define.Input("onlyArg", IntType) ], fun _ () -> null) ])
     let schema = Schema(root)
     let query = """{ __type(name: "Query") {
       fields {
@@ -481,7 +481,7 @@ let ``Default field args type definitions are considered non-null`` () =
 
 [<Fact>]
 let ``Nullable field args type definitions are considered nullable`` () =
-    let root = Define.Object("Query", [ Define.Field("onlyField", String, "", [ Define.Input("onlyArg", Nullable Int) ], fun _ () -> null) ])
+    let root = Define.Object("Query", [ Define.Field("onlyField", StringType, "", [ Define.Input("onlyArg", Nullable IntType) ], fun _ () -> null) ])
     let schema = Schema(root)
     let query = """{ __type(name: "Query") {
       fields {
@@ -527,7 +527,7 @@ let ``Nullable field args type definitions are considered nullable`` () =
 
 [<Fact>]
 let ``Introspection executes an introspection query`` () =
-    let root = Define.Object("QueryRoot", [ Define.Field("onlyField", String) ])
+    let root = Define.Object("QueryRoot", [ Define.Field("onlyField", StringType) ])
     let schema = Schema(root)
     let (Patterns.Object raw) = root
     let result = sync <| Executor(schema).AsyncExecute(parse Introspection.IntrospectionQuery, raw)
@@ -552,7 +552,7 @@ let ``Introspection executes an introspection query`` () =
                     box <| NameValueLookup.ofList [
                             "kind", upcast "SCALAR"
                             "name", upcast "String"
-                            "description", upcast "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
+                            "description", upcast "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The `String` type is most often used by GraphQL to represent free-form human-readable text."
                             "fields", null
                             "inputFields", null
                             "interfaces", null
@@ -582,7 +582,7 @@ let ``Introspection executes an introspection query`` () =
                     box <| NameValueLookup.ofList [
                             "kind", upcast "SCALAR"
                             "name", upcast "ID"
-                            "description", upcast "The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `\"4\"`) or integer (such as `4`) input value will be accepted as an ID."
+                            "description", upcast "The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The `ID` type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `\"4\"`) or integer (such as `4`) input value will be accepted as an ID."
                             "fields", null
                             "inputFields", null
                             "interfaces", null
@@ -591,8 +591,18 @@ let ``Introspection executes an introspection query`` () =
                     ]
                     box <| NameValueLookup.ofList [
                             "kind", upcast "SCALAR"
-                            "name", upcast "Date"
-                            "description", upcast "The `Date` scalar type represents a Date value with Time component. The Date type appears in a JSON response as a String representation compatible with ISO-8601 format."
+                            "name", upcast "DateTimeOffset"
+                            "description", upcast "The `DateTimeOffset` scalar type represents a Date value with Time component. The `DateTimeOffset` type appears in a JSON response as a String representation compatible with ISO-8601 format."
+                            "fields", null
+                            "inputFields", null
+                            "interfaces", null
+                            "enumValues", null
+                            "possibleTypes", null
+                    ]
+                    box <| NameValueLookup.ofList [
+                            "kind", upcast "SCALAR"
+                            "name", upcast "DateOnly"
+                            "description", upcast "The `DateOnly` scalar type represents a Date value without Time component. The `DateOnly` type appears in a JSON response as a `String` representation of full-date value as specified by [IETF 3339](https://www.ietf.org/rfc/rfc3339.txt)."
                             "fields", null
                             "inputFields", null
                             "interfaces", null
@@ -602,7 +612,7 @@ let ``Introspection executes an introspection query`` () =
                     box <| NameValueLookup.ofList [
                             "kind", upcast "SCALAR"
                             "name", upcast "URI"
-                            "description", upcast "The `URI` scalar type represents a string resource identifier compatible with URI standard. The URI type appears in a JSON response as a String."
+                            "description", upcast "The `URI` scalar type represents a string resource identifier compatible with URI standard. The `URI` type appears in a JSON response as a String."
                             "fields", null
                             "inputFields", null
                             "interfaces", null

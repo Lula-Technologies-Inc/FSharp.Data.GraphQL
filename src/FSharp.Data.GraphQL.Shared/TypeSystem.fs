@@ -812,7 +812,7 @@ and VarDef =
       /// Type definition in corresponding GraphQL schema.
       TypeDef: InputDef
       /// Optional default value.
-      DefaultValue: Value option }
+      DefaultValue: InputValue option }
 
 
 /// The context used to hold all the information for a schema compiling proccess.
@@ -882,7 +882,7 @@ and ResolveFieldContext =
       /// Variables provided by the operation caller.
       Variables : ImmutableDictionary<string, obj>
       /// Field path
-      Path : string list }
+      Path : FieldPath }
 
     /// Remembers an exception, so it can be included in the final response.
     member x.AddError(error : exn) = x.Context.Errors.Add error
@@ -947,8 +947,7 @@ and [<CustomEquality; NoComparison>] internal FieldDefinition<'Val, 'Res> =
       /// Optional field deprecation warning.
       DeprecationReason : string option
       /// Field metadata definition.
-      Metadata : Metadata
-      }
+      Metadata : Metadata }
 
     interface FieldDef with
         member x.Name = x.Name
@@ -980,6 +979,10 @@ and [<CustomEquality; NoComparison>] internal FieldDefinition<'Val, 'Res> =
         then x.Name + "(" + String.Join(", ", x.Args) + "): " + x.TypeDef.ToString()
         else x.Name + ": " + x.TypeDef.ToString()
 
+and InputParameterValue =
+    | InlineConstant of InputValue
+    | Variable of JsonElement
+
 /// An untyped representation of GraphQL scalar type.
 and ScalarDef =
     interface
@@ -988,10 +991,9 @@ and ScalarDef =
         /// Optional scalar type description.
         abstract Description : string option
         /// A function used to retrieve a .NET object from provided GraphQL query.
-        abstract CoerceInput : Value -> obj option
-        /// A function used to set a surrogate representation to be
-        /// returned as a query result.
-        abstract CoerceValue : obj -> obj option
+        abstract CoerceInput : InputParameterValue -> obj option
+        /// A function used to serialize a .NET object and coerce its value to JSON compatible if needed.
+        abstract CoerceOutput : obj -> obj option
         inherit TypeDef
         inherit NamedDef
         inherit InputDef
@@ -1006,10 +1008,10 @@ and [<CustomEquality; NoComparison>] ScalarDefinition<'Val> =
       /// Optional type description.
       Description : string option
       /// A function used to retrieve a .NET object from provided GraphQL query.
-      CoerceInput : Value -> 'Val option
+      CoerceInput : InputParameterValue -> 'Val option
       /// A function used to set a surrogate representation to be
       /// returned as a query result.
-      CoerceValue : obj -> 'Val option }
+      CoerceOutput : obj -> 'Val option }
 
     interface TypeDef with
         member _.Type = typeof<'Val>
@@ -1029,7 +1031,7 @@ and [<CustomEquality; NoComparison>] ScalarDefinition<'Val> =
         member x.Name = x.Name
         member x.Description = x.Description
         member x.CoerceInput input = x.CoerceInput input |> Option.map box
-        member x.CoerceValue value = (x.CoerceValue value) |> Option.map box
+        member x.CoerceOutput value = (x.CoerceOutput value) |> Option.map box
 
     interface InputDef<'Val>
     interface OutputDef<'Val>
@@ -1558,7 +1560,7 @@ and InputObjectDefinition<'Val> =
             upcast list
 
 /// Function type used for resolving input object field values.
-and ExecuteInput = Value -> ImmutableDictionary<string, obj> -> obj
+and ExecuteInput = InputValue -> ImmutableDictionary<string, obj> -> obj
 
 /// GraphQL field input definition. Can be used as fields for
 /// input objects or as arguments for any ordinary field definition.
@@ -2272,6 +2274,7 @@ module Patterns =
 
 [<AutoOpen>]
 module SchemaDefinitions =
+
     open System.Globalization
     open System.Reflection
 
@@ -2279,17 +2282,6 @@ module SchemaDefinitions =
     let coerceIntValue (x : obj) : int option =
         match x with
         | null -> None
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.Number -> Some (e.GetInt32())
-        | :? int as i -> Some i
-        | :? int64 as l -> Some(int l)
-        | :? double as d -> Some(int d)
-        | :? string as s ->
-            match Int32.TryParse(s) with
-            | true, i -> Some i
-            | false, _ -> None
-        | :? bool as b ->
-            Some(if b then 1
-                 else 0)
         | other ->
             try
                 Some(System.Convert.ToInt32 other)
@@ -2299,7 +2291,6 @@ module SchemaDefinitions =
     let coerceLongValue (x : obj) : int64 option =
         match x with
         | null -> None
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.Number -> Some (e.GetInt64())
         | :? int as i -> Some (int64 i)
         | :? int64 as l -> Some(l)
         | :? double as d -> Some(int64 d)
@@ -2318,7 +2309,6 @@ module SchemaDefinitions =
     let coerceFloatValue (x : obj) : double option =
         match x with
         | null -> None
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.Number -> Some (e.GetDouble())
         | :? int as i -> Some(double i)
         | :? int64 as l -> Some(double l)
         | :? double as d -> Some d
@@ -2338,16 +2328,6 @@ module SchemaDefinitions =
     let coerceBoolValue (x : obj) : bool option =
         match x with
         | null -> None
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.True -> Some true
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.False -> Some false
-        | :? int as i -> Some(i <> 0)
-        | :? int64 as l -> Some(l <> 0L)
-        | :? double as d -> Some(d <> 0.)
-        | :? string as s ->
-            match Boolean.TryParse(s) with
-            | true, i -> Some i
-            | false, _ -> None
-        | :? bool as b -> Some b
         | other ->
             try
                 Some(System.Convert.ToBoolean other)
@@ -2357,10 +2337,6 @@ module SchemaDefinitions =
     let coerceUriValue (x : obj) : Uri option =
         match x with
         | null -> None
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.String ->
-            match Uri.TryCreate(e.GetString(), UriKind.RelativeOrAbsolute) with
-            | true, uri -> Some uri
-            | false, _ -> None
         | :? Uri as u -> Some u
         | :? string as s ->
             match Uri.TryCreate(s, UriKind.RelativeOrAbsolute) with
@@ -2368,18 +2344,26 @@ module SchemaDefinitions =
             | false, _ -> None
         | other -> None
 
-    /// Tries to convert any value to DateTime.
-    let coerceDateValue (x : obj) : DateTime option =
+    /// Tries to convert any value to DateTimeOffset.
+    let coerceDateTimeOffsetValue (x : obj) : DateTimeOffset option =
         match x with
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.String ->
-            let s = e.GetString()
-            match DateTime.TryParse(s) with
+        | null -> None
+        | :? DateTimeOffset as d -> Some d
+        | :? DateTime as d -> Some (DateTimeOffset d)
+        | :? string as s ->
+            match DateTimeOffset.TryParse(s) with
             | true, date -> Some date
             | false, _ -> None
+        | other -> None
+
+    /// Tries to convert any value to DateOnly.
+    let coerceDateOnlyValue (x : obj) : DateOnly option =
+        match x with
         | null -> None
-        | :? DateTime as d -> Some d
+        | :? DateOnly as d -> Some d
+        | :? DateTime as d -> Some (DateOnly.FromDateTime d)
         | :? string as s ->
-            match DateTime.TryParse(s) with
+            match DateOnly.TryParse(s) with
             | true, date -> Some date
             | false, _ -> None
         | other -> None
@@ -2388,11 +2372,6 @@ module SchemaDefinitions =
     let coerceGuidValue (x : obj) : Guid option =
         match x with
         | null -> None
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.String ->
-            let s = e.GetString()
-            match Guid.TryParse(s) with
-            | true, guid -> Some guid
-            | false, _ -> None
         | :? Guid as g -> Some g
         | :? string as s ->
             match Guid.TryParse(s) with
@@ -2421,11 +2400,9 @@ module SchemaDefinitions =
         | _ -> Some(x.ToString())
 
     /// Tries to convert any value to generic type parameter.
-    let coerceIDValue (x : obj) : 't option =
+    let coerceIdValue (x : obj) : 't option =
         match x with
         | null -> None
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.String -> Some (downcast Convert.ChangeType(e.GetString() , typeof<'t>))
-        | :? JsonElement as e when e.ValueKind = JsonValueKind.Number -> Some (downcast Convert.ChangeType(e.GetInt32() , typeof<'t>))
         | :? string as s -> Some (downcast Convert.ChangeType(s, typeof<'t>))
         | Option o -> Some(downcast Convert.ChangeType(o, typeof<'t>))
         | _ -> Some(downcast Convert.ChangeType(x, typeof<'t>))
@@ -2433,51 +2410,56 @@ module SchemaDefinitions =
     /// Tries to resolve AST query input to int.
     let coerceIntInput =
         function
-        | IntValue i -> Some (int i)
-        | FloatValue f -> Some(int f)
-        | StringValue s ->
+        | Variable e when e.ValueKind = JsonValueKind.Number -> Some (e.GetInt32())
+        | InlineConstant (IntValue i) -> Some (int i)
+        | InlineConstant (FloatValue f) -> Some(int f)
+        | InlineConstant (StringValue s) ->
             match Int32.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture) with
             | true, i -> Some i
             | false, _ -> None
-        | BooleanValue b ->
-            Some(if b then 1
-                 else 0)
+        | InlineConstant (BooleanValue b) -> Some(if b then 1 else 0)
         | _ -> None
 
     /// Tries to resolve AST query input to int64.
     let coerceLongInput =
         function
-        | IntValue i -> Some (int64 i)
-        | FloatValue f -> Some(int64 f)
-        | StringValue s ->
+        | Variable e when e.ValueKind = JsonValueKind.Number -> Some (e.GetInt64())
+        | InlineConstant (IntValue i) -> Some (int64 i)
+        | InlineConstant (FloatValue f) -> Some(int64 f)
+        | InlineConstant (StringValue s) ->
             match Int64.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture) with
             | true, i -> Some i
             | false, _ -> None
-        | BooleanValue b ->
-            Some(if b then 1L else 0L)
+        | InlineConstant (BooleanValue b) -> Some(if b then 1L else 0L)
         | _ -> None
 
     /// Tries to resolve AST query input to double.
     let coerceFloatInput =
         function
-        | IntValue i -> Some(double i)
-        | FloatValue f -> Some f
-        | StringValue s ->
+        | Variable e when e.ValueKind = JsonValueKind.Number -> Some (e.GetDouble())
+        | InlineConstant (IntValue i) -> Some(double i)
+        | InlineConstant (FloatValue f) -> Some f
+        | InlineConstant (StringValue s) ->
             match Double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture) with
             | true, i -> Some i
             | false, _ -> None
-        | BooleanValue b ->
-            Some(if b then 1.
-                 else 0.)
+        | InlineConstant (BooleanValue b) -> Some(if b then 1. else 0.)
         | _ -> None
 
     /// Tries to resolve AST query input to string.
     let coerceStringInput =
         function
-        | IntValue i -> Some(i.ToString(CultureInfo.InvariantCulture))
-        | FloatValue f -> Some(f.ToString(CultureInfo.InvariantCulture))
-        | StringValue s -> Some s
-        | BooleanValue b ->
+        | Variable e ->
+            match e.ValueKind with
+            | JsonValueKind.String -> Some (e.GetString())
+            | JsonValueKind.True
+            | JsonValueKind.False
+            | JsonValueKind.Number -> Some (e.GetRawText())
+            | _ -> None
+        | InlineConstant (IntValue i) -> Some(i.ToString(CultureInfo.InvariantCulture))
+        | InlineConstant (FloatValue f) -> Some(f.ToString(CultureInfo.InvariantCulture))
+        | InlineConstant (StringValue s) -> Some s
+        | InlineConstant (BooleanValue b) ->
             Some(if b then "true"
                  else "false")
         | _ -> None
@@ -2490,40 +2472,63 @@ module SchemaDefinitions =
     /// Tries to resolve AST query input to bool.
     let coerceBoolInput =
         function
-        | IntValue i ->
-            Some(if i = 0L then false
-                 else true)
-        | FloatValue f ->
-            Some(if f = 0. then false
-                 else true)
-        | StringValue s ->
+        | Variable e when e.ValueKind = JsonValueKind.True -> Some true
+        | Variable e when e.ValueKind = JsonValueKind.False -> Some false
+        | InlineConstant (IntValue i) -> Some(if i = 0L then false else true)
+        | InlineConstant (FloatValue f) -> Some(if f = 0. then false else true)
+        | InlineConstant (StringValue s) ->
             match Boolean.TryParse(s) with
             | true, i -> Some i
             | false, _ -> None
-        | BooleanValue b -> Some b
+        | InlineConstant (BooleanValue b) -> Some b
         | _ -> None
 
     /// Tries to resolve AST query input to provided generic type.
     let coerceIdInput input : 't option=
         match input with
-        | IntValue i -> Some(downcast Convert.ChangeType(i, typeof<'t>))
-        | StringValue s -> Some(downcast Convert.ChangeType(s, typeof<'t>))
+        | Variable e when e.ValueKind = JsonValueKind.String -> Some (downcast Convert.ChangeType(e.GetString() , typeof<'t>))
+        | Variable e when e.ValueKind = JsonValueKind.Number -> Some (downcast Convert.ChangeType(e.GetInt32() , typeof<'t>))
+        | InlineConstant (IntValue i) -> Some(downcast Convert.ChangeType(i, typeof<'t>))
+        | InlineConstant (StringValue s) -> Some(downcast Convert.ChangeType(s, typeof<'t>))
         | _ -> None
 
     /// Tries to resolve AST query input to URI.
     let coerceUriInput =
         function
-        | StringValue s ->
+        | Variable e when e.ValueKind = JsonValueKind.String ->
+            match Uri.TryCreate(e.GetString(), UriKind.RelativeOrAbsolute) with
+            | true, uri -> Some uri
+            | false, _ -> None
+        | InlineConstant (StringValue s) ->
             match Uri.TryCreate(s, UriKind.RelativeOrAbsolute) with
             | true, uri -> Some uri
             | false, _ -> None
         | _ -> None
 
-    /// Tries to resolve AST query input to DateTime.
-    let coerceDateInput =
+    /// Tries to resolve AST query input to DateTimeOffset.
+    let coerceDateTimeOffsetInput =
         function
-        | StringValue s ->
-            match DateTime.TryParse(s) with
+        | Variable e when e.ValueKind = JsonValueKind.String ->
+            let s = e.GetString()
+            match DateTimeOffset.TryParse(s) with
+            | true, date -> Some date
+            | false, _ -> None
+        | InlineConstant (StringValue s) ->
+            match DateTimeOffset.TryParse(s) with
+            | true, date -> Some date
+            | false, _ -> None
+        | _ -> None
+
+    /// Tries to resolve AST query input to DateOnly.
+    let coerceDateOnlyInput =
+        function
+        | Variable e when e.ValueKind = JsonValueKind.String ->
+            let s = e.GetString()
+            match DateOnly.TryParse(s) with
+            | true, date -> Some date
+            | false, _ -> None
+        | InlineConstant (StringValue s) ->
+            match DateOnly.TryParse(s) with
             | true, date -> Some date
             | false, _ -> None
         | _ -> None
@@ -2531,7 +2536,12 @@ module SchemaDefinitions =
     /// Tries to resolve AST query input to Guid.
     let coerceGuidInput =
         function
-        | StringValue s ->
+        | Variable e when e.ValueKind = JsonValueKind.String ->
+            let s = e.GetString()
+            match Guid.TryParse(s) with
+            | true, guid -> Some guid
+            | false, _ -> None
+        | InlineConstant (StringValue s) ->
             match Guid.TryParse(s) with
             | true, guid -> Some guid
             | false, _ -> None
@@ -2547,102 +2557,111 @@ module SchemaDefinitions =
 
     let private ignoreInputResolve (_ : unit) (input : 'T) = ()
 
-    let variableOrElse other value (variables : ImmutableDictionary<string, obj>) =
+    let internal variableOrElse other value (variables : ImmutableDictionary<string, obj>) =
         match value with
         // TODO: Use FSharp.Collection.Immutable
-        | Variable variableName ->
+        | VariableName variableName ->
             match variables.TryGetValue variableName with
             | true, value -> value
             | false, _ -> null
         | v -> other v
 
     /// GraphQL type of int
-    let Int : ScalarDefinition<int> =
+    let IntType : ScalarDefinition<int> =
         { Name = "Int"
           Description =
               Some
                   "The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1."
           CoerceInput = coerceIntInput
-          CoerceValue = coerceIntValue }
+          CoerceOutput = coerceIntValue }
 
     /// GraphQL type of long
-    let Long : ScalarDefinition<int64> =
+    let LongType : ScalarDefinition<int64> =
         { Name = "Long"
           Description =
               Some
                   "The `Long` scalar type represents non-fractional signed whole numeric values. Long can represent values between -(2^63) and 2^63 - 1."
           CoerceInput = coerceLongInput
-          CoerceValue = coerceLongValue }
+          CoerceOutput = coerceLongValue }
 
     /// GraphQL type of boolean
-    let Boolean : ScalarDefinition<bool> =
+    let BooleanType : ScalarDefinition<bool> =
         { Name = "Boolean"
           Description = Some "The `Boolean` scalar type represents `true` or `false`."
           CoerceInput = coerceBoolInput
-          CoerceValue = coerceBoolValue }
+          CoerceOutput = coerceBoolValue }
 
     /// GraphQL type of float
-    let Float : ScalarDefinition<double> =
+    let FloatType : ScalarDefinition<double> =
         { Name = "Float"
           Description =
               Some
                   "The `Float` scalar type represents signed double-precision fractional values as specified by [IEEE 754](http://en.wikipedia.org/wiki/IEEE_floating_point)."
           CoerceInput = coerceFloatInput
-          CoerceValue = coerceFloatValue }
+          CoerceOutput = coerceFloatValue }
 
     /// GraphQL type of string
-    let String : ScalarDefinition<string> =
+    let StringType : ScalarDefinition<string> =
         { Name = "String"
           Description =
               Some
-                  "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
+                  "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The `String` type is most often used by GraphQL to represent free-form human-readable text."
           CoerceInput = coerceStringInput
-          CoerceValue = coerceStringValue }
+          CoerceOutput = coerceStringValue }
 
     /// GraphQL type for custom identifier
-    let ID<'Val> : ScalarDefinition<'Val> =
+    let IDType<'Val> : ScalarDefinition<'Val> =
         { Name = "ID"
           Description =
               Some
-                  "The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `\"4\"`) or integer (such as `4`) input value will be accepted as an ID."
+                  "The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The `ID` type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `\"4\"`) or integer (such as `4`) input value will be accepted as an ID."
           CoerceInput = coerceIdInput
-          CoerceValue = coerceIDValue }
+          CoerceOutput = coerceIdValue }
 
-    let Obj : ScalarDefinition<obj> = {
+    let ObjType : ScalarDefinition<obj> = {
             Name = "Object"
             Description =
                Some
-                  "The `Object` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
-            CoerceInput = (fun (o: Value) -> Some (o:>obj))
-            CoerceValue = (fun (o: obj) -> Some (o))
+                  "The `Object` scalar type represents textual data, represented as UTF-8 character sequences. The `String` type is most often used by GraphQL to represent free-form human-readable text."
+            CoerceInput = (fun o -> Some (o))
+            CoerceOutput = (fun o -> Some (o))
         }
 
     /// GraphQL type for System.Uri
-    let Uri : ScalarDefinition<Uri> =
+    let UriType : ScalarDefinition<Uri> =
         { Name = "URI"
           Description =
               Some
-                  "The `URI` scalar type represents a string resource identifier compatible with URI standard. The URI type appears in a JSON response as a String."
+                  "The `URI` scalar type represents a string resource identifier compatible with URI standard. The `URI` type appears in a JSON response as a String."
           CoerceInput = coerceUriInput
-          CoerceValue = coerceUriValue }
+          CoerceOutput = coerceUriValue }
 
-    /// GraphQL type for System.DateTime
-    let Date : ScalarDefinition<DateTime> =
-        { Name = "Date"
+    /// GraphQL type for System.DateTimeOffset
+    let DateTimeOffsetType : ScalarDefinition<DateTimeOffset> =
+        { Name = "DateTimeOffset"
           Description =
               Some
-                  "The `Date` scalar type represents a Date value with Time component. The Date type appears in a JSON response as a String representation compatible with ISO-8601 format."
-          CoerceInput = coerceDateInput
-          CoerceValue = coerceDateValue }
+                  "The `DateTimeOffset` scalar type represents a Date value with Time component. The `DateTimeOffset` type appears in a JSON response as a String representation compatible with ISO-8601 format."
+          CoerceInput = coerceDateTimeOffsetInput
+          CoerceOutput = coerceDateTimeOffsetValue }
+
+    /// GraphQL type for System.DateOnly
+    let DateOnlyType : ScalarDefinition<DateOnly> =
+        { Name = "DateOnly"
+          Description =
+              Some
+                  "The `DateOnly` scalar type represents a Date value without Time component. The `DateOnly` type appears in a JSON response as a `String` representation of full-date value as specified by [IETF 3339](https://www.ietf.org/rfc/rfc3339.txt)."
+          CoerceInput = coerceDateOnlyInput
+          CoerceOutput = coerceDateOnlyValue }
 
     /// GraphQL type for System.Guid
-    let Guid : ScalarDefinition<Guid> =
+    let GuidType : ScalarDefinition<Guid> =
         { Name = "Guid"
           Description =
               Some
                   "The `Guid` scalar type represents a Globaly Unique Identifier value. It's a 128-bit long byte key, that can be serialized to string."
           CoerceInput = coerceGuidInput
-          CoerceValue = coerceGuidValue }
+          CoerceOutput = coerceGuidValue }
 
     /// GraphQL @include directive.
     let IncludeDirective : DirectiveDef =
@@ -2654,10 +2673,11 @@ module SchemaDefinitions =
           Args =
               [| { InputFieldDefinition.Name = "if"
                    Description = Some "Included when true."
-                   TypeDef = Boolean
+                   TypeDef = BooleanType
                    DefaultValue = None
                    ExecuteInput =
-                       variableOrElse (coerceBoolInput
+                       variableOrElse (InlineConstant >>
+                                       coerceBoolInput
                                        >> Option.map box
                                        >> Option.toObj) } |] }
 
@@ -2670,10 +2690,11 @@ module SchemaDefinitions =
           Args =
               [| { InputFieldDefinition.Name = "if"
                    Description = Some "Skipped when true."
-                   TypeDef = Boolean
+                   TypeDef = BooleanType
                    DefaultValue = None
                    ExecuteInput =
-                       variableOrElse (coerceBoolInput
+                       variableOrElse (InlineConstant >>
+                                       coerceBoolInput
                                        >> Option.map box
                                        >> Option.toObj) } |] }
 
@@ -2714,14 +2735,14 @@ module SchemaDefinitions =
         /// </summary>
         /// <param name="name">Type name. Must be unique in scope of the current schema.</param>
         /// <param name="coerceInput">Function used to resolve .NET object from GraphQL query AST.</param>
-        /// <param name="coerceValue">Function used to cross cast to .NET types.</param>
+        /// <param name="coerceOutput">Function used to cross cast to .NET types.</param>
         /// <param name="description">Optional scalar description. Usefull for generating documentation.</param>
-        static member Scalar(name : string, coerceInput : Value -> 'T option,
-                             coerceValue : obj -> 'T option, ?description : string) : ScalarDefinition<'T> =
+        static member Scalar(name : string, coerceInput : InputParameterValue -> 'T option,
+                             coerceOutput : obj -> 'T option, ?description : string) : ScalarDefinition<'T> =
             { Name = name
               Description = description
               CoerceInput = coerceInput
-              CoerceValue = coerceValue }
+              CoerceOutput = coerceOutput }
 
         /// <summary>
         /// Creates GraphQL type definition for user defined enums.
@@ -2740,7 +2761,7 @@ module SchemaDefinitions =
         /// <param name="name">Enum value name. Must be unique in scope of the defining enum.</param>
         /// <param name="value">
         /// .NET value associated with target enum value. All enum values are represented as strings in GraphQL type system.
-        /// Enum value will be stringified using `ToString()` method when passing to a client.
+        /// Enum value will be stringified using 'ToString()' method when passing to a client.
         /// </param>
         /// <param name="description">Optional enum value description. Usefull for generating documentation.</param>
         /// <param name="deprecationReason">If set, marks an enum value as deprecated.</param>
@@ -3044,7 +3065,7 @@ module SchemaDefinitions =
         static member CustomField(name : string, [<ReflectedDefinition(true)>] execField : Expr<ExecuteField>) : FieldDef<'Val> =
             upcast { FieldDefinition.Name = name
                      Description = None
-                     TypeDef = Obj
+                     TypeDef = ObjType
                      Resolve = ResolveExpr(execField)
                      Args = [||]
                      DeprecationReason = None

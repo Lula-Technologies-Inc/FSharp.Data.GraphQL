@@ -31,7 +31,7 @@ type GQLProblemDetails = {
     /// An array of fields path segments that that identify the specific field path in a GraphQL query where the resolution problem occurs.
     /// </summary>
     [<JsonPropertyName("path")>]
-    Path: string list Skippable
+    Path: FieldPath Skippable
 
     /// <summary>
     /// An array of line and columnt pairs that identify the specific positions in a GraphQL query where the problem occurs.
@@ -85,7 +85,7 @@ with
             | _ -> Skip
         GQLProblemDetails.Create (error.Message, extensions)
 
-    static member OfFieldError (path: string list) (error : IGQLError) =
+    static member OfFieldError (path: FieldPath) (error : IGQLError) =
         let extensions =
             match error with
             | :? IGQLErrorExtensions as ext -> ext.Extensions |> Skippable.ofValueOption

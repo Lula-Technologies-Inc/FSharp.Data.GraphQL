@@ -2,18 +2,17 @@
 // Copyright (c) 2016 Bazinga Technologies Inc
 module FSharp.Data.GraphQL.Execution
 
-open System
-open System.Collections.Generic
-open System.Linq
-open FSharp.Data.GraphQL.Extensions
+open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Ast
+open FSharp.Data.GraphQL.Extensions
+open FSharp.Data.GraphQL.Helpers
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Types.Patterns
-open FSharp.Data.GraphQL
-open FSharp.Data.GraphQL.Helpers
 open FSharp.Control.Reactive
-open System.Text.Json
+open System
+open System.Collections.Generic
 open System.Collections.Immutable
+open System.Text.Json
 
 type Output = IDictionary<string, obj>
 
@@ -198,7 +197,7 @@ let private resolveUnionType possibleTypesFn (uniondef: UnionDef) =
     | Some resolveType -> resolveType
     | None -> defaultResolveType possibleTypesFn uniondef
 
-let private createFieldContext objdef argDefs ctx (info: ExecutionInfo) (path : string list) =
+let private createFieldContext objdef argDefs ctx (info: ExecutionInfo) (path : FieldPath) =
     let fdef = info.Definition
     let args = getArgumentValues argDefs info.Ast.Arguments ctx.Variables
     { ExecutionInfo = info
@@ -285,7 +284,7 @@ let collectFields (strategy : ExecutionStrategy) (rs : AsyncVal<ResolverResult<K
             |> ResolverResult.mapValue(fun _ -> data)
     }
 
-let rec private direct (returnDef : OutputDef) (ctx : ResolveFieldContext) (path : string list) (parent : obj) (value : obj) : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> =
+let rec private direct (returnDef : OutputDef) (ctx : ResolveFieldContext) (path : FieldPath) (parent : obj) (value : obj) : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> =
     let name = ctx.ExecutionInfo.Identifier
     match returnDef with
     | Object objDef ->
@@ -295,7 +294,7 @@ let rec private direct (returnDef : OutputDef) (ctx : ResolveFieldContext) (path
             | kind -> failwithf "Unexpected value of ctx.ExecutionPlan.Kind: %A" kind
         executeObjectFields fields name objDef ctx path value
     | Scalar scalarDef ->
-        match scalarDef.CoerceValue value with
+        match scalarDef.CoerceOutput (downcast value) with
         | Some v' -> resolved name v'
         | None -> raiseErrors <| coercionError value scalarDef.Name path ctx
     | Enum enumDef ->
@@ -347,7 +346,7 @@ let rec private direct (returnDef : OutputDef) (ctx : ResolveFieldContext) (path
         | None -> raiseErrors <| unionImplError uDef.Name resolvedDef.Name path ctx
     | _ -> failwithf "Unexpected value of returnDef: %O" returnDef
 
-and deferred (ctx : ResolveFieldContext) (path : string list) (parent : obj) (value : obj) =
+and deferred (ctx : ResolveFieldContext) (path : FieldPath) (parent : obj) (value : obj) =
     let info = ctx.ExecutionInfo
     let name = info.Identifier
     let deferred =
@@ -356,7 +355,7 @@ and deferred (ctx : ResolveFieldContext) (path : string list) (parent : obj) (va
         |> Observable.bind(ResolverResult.mapValue(fun d -> d.Value) >> deferResults path)
     AsyncVal.wrap <| Ok(KeyValuePair(info.Identifier, null), Some deferred, [])
 
-and private streamed (options : BufferedStreamOptions) (innerDef : OutputDef) (ctx : ResolveFieldContext) (path : string list) (parent : obj) (value : obj) =
+and private streamed (options : BufferedStreamOptions) (innerDef : OutputDef) (ctx : ResolveFieldContext) (path : FieldPath) (parent : obj) (value : obj) =
     let info = ctx.ExecutionInfo
     let name = info.Identifier
     let innerCtx =
@@ -409,7 +408,7 @@ and private streamed (options : BufferedStreamOptions) (innerDef : OutputDef) (c
         AsyncVal.wrap <| Ok(KeyValuePair(info.Identifier, box [||]), Some stream, [])
     | _ -> raise <| GraphQLException (sprintf "Expected to have enumerable value in field '%s' but got '%O'" ctx.ExecutionInfo.Identifier (value.GetType()))
 
-and private live (ctx : ResolveFieldContext) (path : string list) (parent : obj) (value : obj) =
+and private live (ctx : ResolveFieldContext) (path : FieldPath) (parent : obj) (value : obj) =
     let info = ctx.ExecutionInfo
     let name = info.Identifier
 
@@ -444,7 +443,7 @@ and private live (ctx : ResolveFieldContext) (path : string list) (parent : obj)
     |> AsyncVal.map(Result.map(fun (data, deferred, errs) -> (data, Some <| Option.fold Observable.merge updates deferred, errs)))
 
 /// Actually execute the resolvers.
-and private executeResolvers (ctx : ResolveFieldContext) (path : string list) (parent : obj) (value : AsyncVal<obj option>) : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> =
+and private executeResolvers (ctx : ResolveFieldContext) (path : FieldPath) (parent : obj) (value : AsyncVal<obj option>) : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> =
     let info = ctx.ExecutionInfo
     let name = info.Identifier
     let returnDef = info.ReturnDef
@@ -458,7 +457,7 @@ and private executeResolvers (ctx : ResolveFieldContext) (path : string list) (p
 
     /// Run a resolution strategy with the provided context.
     /// This handles all null resolver errors/error propagation.
-    let resolveWith (ctx : ResolveFieldContext) (onSuccess : ResolveFieldContext -> string list -> obj -> obj -> AsyncVal<ResolverResult<KeyValuePair<string, obj>>>) : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> = asyncVal {
+    let resolveWith (ctx : ResolveFieldContext) (onSuccess : ResolveFieldContext -> FieldPath -> obj -> obj -> AsyncVal<ResolverResult<KeyValuePair<string, obj>>>) : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> = asyncVal {
         let! resolved = value |> AsyncVal.rescue path ctx.Schema.ParseError
         match resolved with
         | Error errs when ctx.ExecutionInfo.IsNullable -> return Ok (KeyValuePair(name, null), None, errs)
@@ -487,7 +486,7 @@ and private executeResolvers (ctx : ResolveFieldContext) (path : string list) (p
         |> resolveWith ctx
 
 
-and executeObjectFields (fields : ExecutionInfo list) (objName : string) (objDef : ObjectDef) (ctx : ResolveFieldContext) (path : string list) (value : obj) : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> = asyncVal {
+and executeObjectFields (fields : ExecutionInfo list) (objName : string) (objDef : ObjectDef) (ctx : ResolveFieldContext) (path : FieldPath) (value : obj) : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> = asyncVal {
     let executeField field =
         let argDefs = ctx.Context.FieldExecuteMap.GetArgs(objDef.Name, field.Definition.Name)
         let resolver = ctx.Context.FieldExecuteMap.GetExecute(objDef.Name, field.Definition.Name)

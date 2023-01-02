@@ -83,7 +83,7 @@ type internal ObjectListFilterMiddleware<'ObjectType, 'ListType>(reportToMetadat
                 field.Ast.Arguments
                 |> Seq.map (fun x ->
                     match x.Name with
-                    | "filter" -> ObjectListFilter.CoerceInput x.Value
+                    | "filter" -> ObjectListFilter.CoerceInput (InlineConstant x.Value)
                     | _ -> None)
                 |> Seq.choose id
                 |> Seq.map (fun x -> field.Ast.AliasOrName, x)

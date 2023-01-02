@@ -30,12 +30,16 @@ type GQLExecutionResult =
           Metadata = meta }
     static member Empty(documentId, meta) =
         GQLExecutionResult.Direct(documentId, Map.empty, [], meta)
+    static member Error(documentId, error, meta) =
+        GQLExecutionResult.Direct(documentId, Map.empty, [ GQLProblemDetails.OfError error ], meta)
     static member Error(documentId, msg, meta) =
         GQLExecutionResult.Direct(documentId, Map.empty, [ GQLProblemDetails.Create msg ], meta)
     static member Invalid(documentId, errors, meta) =
         GQLExecutionResult.Direct(documentId, Map.empty, errors, meta)
-    static member ErrorAsync(documentId, msg, meta) =
+    static member ErrorAsync(documentId, msg : string, meta) =
         asyncVal.Return (GQLExecutionResult.Error (documentId, msg, meta))
+    static member ErrorAsync(documentId, error : IGQLError, meta) =
+        asyncVal.Return (GQLExecutionResult.Error (documentId, error, meta))
 
 // TODO: Rename to PascalCase
 and GQLResponseContent =
@@ -44,8 +48,8 @@ and GQLResponseContent =
     | Stream of stream : IObservable<GQLSubscriptionResponseContent>
 
 and GQLDeferredResponseContent =
-    | DeferredResult of data : obj * path : string list
-    | DeferredErrors of data : obj * errors: GQLProblemDetails list * path : string list
+    | DeferredResult of data : obj * path : FieldPath
+    | DeferredErrors of data : obj * errors: GQLProblemDetails list * path : FieldPath
 
 and GQLSubscriptionResponseContent =
     | SubscriptionResult of data : Output
