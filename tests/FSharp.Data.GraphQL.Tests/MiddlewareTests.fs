@@ -88,7 +88,7 @@ let execute (query : Document) =
     executor.AsyncExecute(query) |> sync
 
 let expectedErrors : GQLProblemDetails list =
-    [ GQLProblemDetails.Create ("Query complexity exceeds maximum threshold. Please reduce query complexity and try again.", List.empty<string>) ]
+    [ GQLProblemDetails.Create ("Query complexity exceeds maximum threshold. Please reduce query complexity and try again.") ]
 
 [<Fact>]
 let ``Simple query: Should pass when below threshold``() =
@@ -228,7 +228,7 @@ let ``Deferred queries : Should pass when below threshold``() =
         ]
     let expectedDeferred =
         DeferredResult (
-            [
+            [|
                 NameValueLookup.ofList [
                     "id", upcast 2
                     "value", upcast "A2"
@@ -237,7 +237,7 @@ let ``Deferred queries : Should pass when below threshold``() =
                     "id", upcast 6
                     "value", upcast "3000"
                 ]
-            ],
+            |],
             [ "A"; "subjects" ]
         )
     let result = execute query
@@ -280,25 +280,23 @@ let ``Streamed queries : Should pass when below threshold``() =
             ]
         ]
     let expectedDeferred1 =
-        NameValueLookup.ofList [
-            "data", upcast [
+        DeferredResult ([|
                 NameValueLookup.ofList [
                     "id", upcast 2
                     "value", upcast "A2"
                 ]
-            ]
-            "path", upcast [ "A" :> obj; "subjects" :> obj; 0 :> obj ]
-        ]
+            |],
+            [ "A"; "subjects"; 0 ]
+        )
     let expectedDeferred2 =
-        NameValueLookup.ofList [
-            "data", upcast [
+        DeferredResult ([|
                 NameValueLookup.ofList [
                     "id", upcast 6
                     "value", upcast "3000"
                 ]
-            ]
-            "path", upcast [ "A" :> obj; "subjects" :> obj; 1 :> obj ]
-        ]
+            |],
+            [ "A"; "subjects"; 1 ]
+        )
     let result = execute query
     ensureDeferred result <| fun data errors deferred ->
         empty errors
@@ -306,7 +304,7 @@ let ``Streamed queries : Should pass when below threshold``() =
         use sub = Observer.create deferred
         sub.WaitCompleted(2)
         sub.Received
-        |> Seq.cast<NameValueLookup>
+        |> Seq.cast<GQLDeferredResponseContent>
         |> contains expectedDeferred1
         |> contains expectedDeferred2
         |> ignore

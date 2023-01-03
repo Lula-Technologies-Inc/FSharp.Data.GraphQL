@@ -70,6 +70,6 @@ let ``Schema config should be able to override default error handling`` () =
       data |> equals (upcast expected)
       errors
       |> equals
-        [ GQLProblemDetails.Create("0", ["test"; "failing1"])
-          GQLProblemDetails.Create("1", ["test"; "failing2"]) ]
+        [ GQLProblemDetails.Create("0", [ box "test"; "failing1" ])
+          GQLProblemDetails.Create("1", [ box "test"; "failing2" ]) ]
     | _ -> fail "Expected Direct GQResponse"

@@ -1,6 +1,6 @@
 namespace FSharp.Data.GraphQL
 
-type internal FieldPath = string list
+type internal FieldPath = obj list
 
 namespace FSharp.Data.GraphQL.Validation
 

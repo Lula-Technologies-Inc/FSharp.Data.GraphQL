@@ -890,7 +890,7 @@ and ResolveFieldContext =
     /// Tries to find an argument by provided name.
     member x.TryArg(name : string) : 't option =
         match Map.tryFind name x.Args with
-        | Some o -> Some(o :?> 't)
+        | Some o -> Some(o :?> 't) // TODO: Use Convert.ChangeType
         | None -> None
 
     /// Returns an argument by provided name. If argument was not found
