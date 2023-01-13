@@ -118,7 +118,8 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
                     let! res = runMiddlewares (fun x -> x.ExecuteOperationAsync) executionCtx executeOperation |> AsyncVal.toAsync
                     return prepareOutput res
                 with
-                | ex -> return prepareOutput(GQLExecutionResult.Error(documentId, ex.ToString(), executionPlan.Metadata))
+                | :? GraphQLException as ex -> return prepareOutput(GQLExecutionResult.Error(documentId, ex, executionPlan.Metadata))
+                | ex -> return prepareOutput(GQLExecutionResult.Error(documentId, ex.ToString(), executionPlan.Metadata)) // TODO: Handle better
             | Validation.ValidationError errors ->
                 let errors = errors |> List.map (fun err ->
                     let path = err.Path |> Option.defaultValue []

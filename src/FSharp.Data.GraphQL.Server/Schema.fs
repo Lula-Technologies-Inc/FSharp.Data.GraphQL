@@ -143,14 +143,14 @@ type SchemaConfig =
             let args = [|
                 Define.Input(
                     "interval",
-                    Nullable Int,
+                    Nullable IntType,
                     defaultValue = streamOptions.Interval,
                     description = "An optional argument used to buffer stream results. " +
                         "When it's value is greater than zero, stream results will be buffered for milliseconds equal to the value, then sent to the client. " +
                         "After that, starts buffering again until all results are streamed.")
                 Define.Input(
                     "preferredBatchSize",
-                    Nullable Int,
+                    Nullable IntType,
                     defaultValue = streamOptions.PreferredBatchSize,
                     description = "An optional argument used to buffer stream results. " +
                         "When it's value is greater than zero, stream results will be buffered until item count reaches this value, then sent to the client. " +
@@ -162,13 +162,14 @@ type SchemaConfig =
 /// GraphQL server schema. Defines the complete type system to be used by GraphQL queries.
 type Schema<'Root> (query: ObjectDef<'Root>, ?mutation: ObjectDef<'Root>, ?subscription: SubscriptionObjectDef<'Root>, ?config: SchemaConfig) =
     let initialTypes: NamedDef list =
-        [ Int
-          String
-          Boolean
-          Float
-          ID
-          Date
-          Uri
+        [ IntType
+          StringType
+          BooleanType
+          FloatType
+          IDType
+          DateTimeOffsetType
+          DateOnlyType
+          UriType
           __Schema
           query ]
 

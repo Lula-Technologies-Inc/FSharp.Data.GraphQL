@@ -28,17 +28,17 @@ let rec Person =
     name = "Person",
     interfaces = [ Node ],
     fields = [
-        Define.Field("id", ID, resolve = fun _ person -> toGlobalId "person" person.Id)
-        Define.Field("name", Nullable String, fun _ person -> Some person.Name)
-        Define.Field("age", Int, fun _ person -> person.Age) ])
+        Define.Field("id", IDType, resolve = fun _ person -> toGlobalId "person" person.Id)
+        Define.Field("name", Nullable StringType, fun _ person -> Some person.Name)
+        Define.Field("age", IntType, fun _ person -> person.Age) ])
 
 and Car =
   Define.Object<Car>(
     name = "Car",
     interfaces = [ Node ],
     fields = [
-        Define.Field("id", ID, fun _ car -> toGlobalId "car" car.Id)
-        Define.Field("model", Nullable String, fun _ car -> Some car.Model) ])
+        Define.Field("id", IDType, fun _ car -> toGlobalId "car" car.Id)
+        Define.Field("model", Nullable StringType, fun _ car -> Some car.Model) ])
 
 and resolve _ _ id =
     match id with
@@ -65,7 +65,7 @@ let execAndValidateNode (query: string) expectedDirect expectedDeferred =
             use sub = Observer.create deferred
             sub.WaitCompleted(expectedItemCount)
             sub.Received
-            |> Seq.cast<NameValueLookup>
+            |> Seq.cast<GQLDeferredResponseContent>
             |> Seq.iter (fun ad -> expectedDeferred |> contains ad |> ignore)
     | None ->
         ensureDirect result <| fun data errors ->
@@ -86,10 +86,7 @@ let ``Node with global ID gets correct record - Defer`` () =
       NameValueLookup.ofList [
         "name", null
         "age", upcast 18]
-    let expectedDeferred1 = Some [
-        NameValueLookup.ofList [
-            "data", upcast "Alice"
-            "path", upcast ["node"; "name"]]]
+    let expectedDeferred1 = Some [ DeferredResult ("Alice", ["node"; "name"]) ]
     execAndValidateNode query1 expectedDirect1 expectedDeferred1
     let query2 = """query ExampleQuery {
         node(id: "Y2FyOjE=") {
@@ -101,10 +98,7 @@ let ``Node with global ID gets correct record - Defer`` () =
     let expectedDirect2 =
       NameValueLookup.ofList [
         "model", null ]
-    let expectedDeferred2 = Some [
-        NameValueLookup.ofList [
-            "data", upcast "Tesla S"
-            "path", upcast ["node"; "model"]]]
+    let expectedDeferred2 = Some [ DeferredResult ("Tesla S", ["node"; "model"]) ]
     execAndValidateNode query2 expectedDirect2 expectedDeferred2
 
 [<Fact>]

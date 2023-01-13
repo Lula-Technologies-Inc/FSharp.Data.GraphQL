@@ -27,9 +27,9 @@ let TypeMetaFieldDef =
         args = [
             { Name = "name"
               Description = None
-              TypeDef = String
+              TypeDef = StringType
               DefaultValue = None
-              ExecuteInput = variableOrElse(coerceStringInput >> Option.map box >> Option.toObj) }
+              ExecuteInput = variableOrElse(InlineConstant >> coerceStringInput >> Option.map box >> Option.toObj) }
         ],
         resolve = fun ctx (_:obj) ->
             ctx.Schema.Introspected.Types
@@ -41,7 +41,7 @@ let TypeNameMetaFieldDef : FieldDef<obj> =
     Define.Field(
         name = "__typename",
         description = "The name of the current Object type at runtime.",
-        typedef = String,
+        typedef = StringType,
         resolve = fun ctx (_:obj) -> ctx.ParentType.Name)
 
 let private tryFindDef (schema: ISchema) (objdef: ObjectDef) (field: Field) : FieldDef option =
@@ -116,9 +116,9 @@ let rec private abstractionInfo (ctx : PlanningContext) (parentDef : AbstractDef
 let private directiveIncluder (directive: Directive) : Includer =
     fun variables ->
         match directive.If.Value with
-        | Variable vname -> downcast variables.[vname]
+        | VariableName vname -> downcast variables.[vname]
         | other ->
-            match coerceBoolInput other with
+            match coerceBoolInput (InlineConstant other) with
             | Some s -> s
             | None -> raise (GraphQLException (sprintf "Expected 'if' argument of directive '@%s' to have boolean value but got %A" directive.Name other))
 
