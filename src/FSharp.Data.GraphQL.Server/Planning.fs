@@ -29,12 +29,15 @@ let TypeMetaFieldDef =
               Description = None
               TypeDef = StringType
               DefaultValue = None
-              ExecuteInput = variableOrElse(InlineConstant >> coerceStringInput >> Option.map box >> Option.toObj) }
+              ExecuteInput = variableOrElse(InlineConstant >> coerceStringInput >> Result.map box) } :> InputFieldDef
         ],
         resolve = fun ctx (_:obj) ->
-            ctx.Schema.Introspected.Types
-            |> Seq.find (fun t -> t.Name = ctx.Arg("name"))
-            |> IntrospectionTypeRef.Named)
+            ctx.Arg("name")
+            |> Result.map (fun name ->
+                ctx.Schema.Introspected.Types
+                |> Seq.find (fun t -> t.Name = name)
+                |> IntrospectionTypeRef.Named)
+            )
 
 /// Field definition allowing to resolve a name of the current Object type at runtime.
 let TypeNameMetaFieldDef : FieldDef<obj> =
@@ -119,8 +122,9 @@ let private directiveIncluder (directive: Directive) : Includer =
         | VariableName vname -> downcast variables.[vname]
         | other ->
             match coerceBoolInput (InlineConstant other) with
-            | Some s -> s
-            | None -> raise (GraphQLException (sprintf "Expected 'if' argument of directive '@%s' to have boolean value but got %A" directive.Name other))
+            | Ok s -> s
+            // TODO: Migrate to GQLResult
+            | Error _ -> raise (GraphQLException (sprintf "Expected 'if' argument of directive '@%s' to have boolean value but got %A" directive.Name other))
 
 let private incl: Includer = fun _ -> true
 let private excl: Includer = fun _ -> false

@@ -21,6 +21,6 @@ module TypeSystemExtensions =
         /// Field argument is defined by the ObjectFilterMiddleware.
         /// </summary>
         member this.Filter =
-            match this.Args.TryFind("filter") with
-            | Some (:? ObjectListFilter as f) -> Some f
+            match this.Args.TryGetValue "filter" with
+            | true, (:? ObjectListFilter as f) -> Some f
             | _ -> None

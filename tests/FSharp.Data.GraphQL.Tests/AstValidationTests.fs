@@ -101,8 +101,8 @@ let Dog =
             [ Define.AutoField("name", StringType)
               Define.AutoField("barkVolume", IntType)
               Define.AutoField("nickname", StringType)
-              Define.Field("doesKnowCommand", BooleanType, [ Define.Input("dogCommand", Command) ], fun ctx (dog : Dog) -> dog.DoesKnowCommand(ctx.Arg("dogCommand")))
-              Define.Field("isHouseTrained", BooleanType, [ Define.Input("atOtherHomes", BooleanType) ], fun ctx (dog : Dog) -> dog.IsHouseTrained(ctx.Arg("atOtherHomes"))) ],
+              Define.Field("doesKnowCommand", BooleanType, [ Define.Input("dogCommand", Command) ], fun ctx (dog : Dog) -> ctx.Arg("dogCommand") |> Result.map dog.DoesKnowCommand)
+              Define.Field("isHouseTrained", BooleanType, [ Define.Input("atOtherHomes", BooleanType) ], fun ctx (dog : Dog) -> ctx.Arg("atOtherHomes") |> Result.map dog.IsHouseTrained) ],
         interfaces = [ Pet ])
 
 let Cat =
@@ -112,7 +112,7 @@ let Cat =
             [ Define.AutoField("name", StringType)
               Define.AutoField("meowVolume", IntType)
               Define.AutoField("nickname", StringType)
-              Define.Field("doesKnowCommand", BooleanType, [ Define.Input("catCommand", Command) ], fun ctx (dog : Cat) -> dog.DoesKnowCommand(ctx.Arg("catCommand")))],
+              Define.Field("doesKnowCommand", BooleanType, [ Define.Input("catCommand", Command) ], fun ctx (dog : Cat) -> ctx.Arg("catCommand") |> Result.map dog.DoesKnowCommand)],
         interfaces = [ Pet ])
 
 let CatOrDog =
@@ -152,13 +152,13 @@ let Arguments =
     Define.Object<obj>(
         name = "Arguments",
         fields =
-            [ Define.Field("multipleReqs", IntType, [ Define.Input("x", IntType); Define.Input("y", IntType) ], fun ctx _ -> ctx.Arg("x") + ctx.Arg("y"))
-              Define.Field("booleanArgField", Nullable BooleanType, [ Define.Input("booleanArg", Nullable BooleanType) ], fun ctx _ -> ctx.Arg("booleanArg"))
-              Define.Field("floatArgField", Nullable FloatType, [ Define.Input("floatArg", Nullable FloatType) ], fun ctx _ -> ctx.Arg("floatArg"))
-              Define.Field("intArgField", Nullable IntType, [ Define.Input("intArg", Nullable IntType) ], fun ctx _ -> ctx.Arg("intArg"))
+            [ Define.Field("multipleReqs", IntType, [ Define.Input("x", IntType); Define.Input("y", IntType) ], fun ctx _ -> ctx.Arg("x") |> Result.bind (fun x -> ctx.Arg("y") |> Result.map (fun y -> x + y)))
+              Define.Field("booleanArgField", Nullable BooleanType, [ Define.Input("booleanArg", Nullable BooleanType) ], fun ctx _ -> ctx.TryArg("booleanArg"))
+              Define.Field("floatArgField", Nullable FloatType, [ Define.Input("floatArg", Nullable FloatType) ], fun ctx _ -> ctx.TryArg("floatArg"))
+              Define.Field("intArgField", Nullable IntType, [ Define.Input("intArg", Nullable IntType) ], fun ctx _ -> ctx.TryArg("intArg"))
               Define.Field("nonNullBooleanListField", ListOf BooleanType, [ Define.Input("nonNullBooleanListArg", ListOf BooleanType) ], fun ctx _ -> ctx.Arg("nonNullBooleanListArg"))
               Define.Field("nonNullBooleanArgField", BooleanType, [ Define.Input("nonNullBooleanArg", BooleanType) ], fun ctx _ -> ctx.Arg("nonNullBooleanArg"))
-              Define.Field("booleanListArgField", Nullable (ListOf (Nullable BooleanType)), [ Define.Input("booleanListArg", ListOf (Nullable BooleanType)) ], fun ctx _ -> ctx.Arg("booleanListArg") |> Some)
+              Define.Field("booleanListArgField", Nullable (ListOf (Nullable BooleanType)), [ Define.Input("booleanListArg", ListOf (Nullable BooleanType)) ], fun ctx _ -> ctx.TryArg("booleanListArg"))
               Define.Field("optionalNonNullBooleanArgField", BooleanType, [ Define.Input("optionalBooleanArg", BooleanType, false) ], fun ctx _ -> ctx.Arg("optionalBooleanArg")) ])
 
 let Query =
@@ -171,8 +171,8 @@ let Query =
               Define.AutoField("pet", Pet)
               Define.AutoField("human", Human)
               Define.Field("arguments", Arguments)
-              Define.Field("findDog", Nullable Dog, [ Define.Input("complex", ComplexInput) ], fun ctx (r : Root) -> r.FindDog(ctx.Arg("complex")))
-              Define.Field("booleanList", Nullable BooleanType, [ Define.Input("booleanListArg", Nullable (ListOf BooleanType)) ], fun ctx (r : Root) -> r.BooleanList(ctx.Arg("booleanListArg"))) ])
+              Define.Field("findDog", Nullable Dog, [ Define.Input("complex", ComplexInput) ], fun ctx (r : Root) -> ctx.Arg("complex") |> Result.map r.FindDog)
+              Define.Field("booleanList", Nullable BooleanType, [ Define.Input("booleanListArg", Nullable (ListOf BooleanType)) ], fun ctx (r : Root) -> ctx.Arg("booleanListArg") |> Result.map r.BooleanList) ])
 
 let Mutation =
     Define.Object<Root>(

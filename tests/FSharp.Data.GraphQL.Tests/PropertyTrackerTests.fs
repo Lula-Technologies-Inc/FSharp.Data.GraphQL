@@ -69,7 +69,7 @@ and Droid =
 and Node = Define.Node<obj>(fun () -> [ Person; Droid ])
 and Query =
     Define.Object<obj list>("Query",
-        [ Define.Field("all", ListOf Node, fun _ data -> data)
+        [ Define.Field("all", ListOf Node, fun _ (data : obj list) -> data)
           Define.Field("people", ListOf Person, fun _ data ->
               data
               |> List.choose (fun (o : obj) -> match o with | :? Person as p -> Some p | _ -> None))
@@ -95,7 +95,7 @@ let ``Property tracker can track indirect properties`` () =
             [ Tracker.Direct(track "FirstName" typeof<Person> typeof<string>, [])
               Tracker.Direct(track "LastName" typeof<Person> typeof<string>, []) ])
     let actual = tracker ImmutableDictionary.Empty info
-    actual |> equals expected
+    actual |> equals (Ok expected)
 
 [<Fact>]
 let ``Property tracker can correctly jump over properties not being part of the tracked chain`` () =
@@ -121,4 +121,4 @@ let ``Property tracker can correctly jump over properties not being part of the 
               Compose(track "Friends" typeof<Person> typeof<Person list>, [], Set.ofList
                   [ Tracker.Direct(track "FirstName" typeof<Person> typeof<string>, []) ]) ])
     let actual = tracker ImmutableDictionary.Empty info
-    actual |> equals expected
+    actual |> equals (Ok expected)

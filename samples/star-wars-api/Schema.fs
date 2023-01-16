@@ -1,4 +1,4 @@
-﻿namespace FSharp.Data.GraphQL.Samples.StarWarsApi
+namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
@@ -41,6 +41,7 @@ type Character =
     | Droid of Droid
 
 module Schema =
+
     let humans =
         [ { Id = "1000"
             Name = Some "Luke Skywalker"
@@ -189,9 +190,9 @@ module Schema =
         Define.Object<Root>(
             name = "Query",
             fields = [
-                Define.Field("hero", Nullable HumanType, "Gets human hero", [ Define.Input("id", StringType) ], fun ctx _ -> getHuman (ctx.Arg("id")))
-                Define.Field("droid", Nullable DroidType, "Gets droid", [ Define.Input("id", StringType) ], fun ctx _ -> getDroid (ctx.Arg("id")))
-                Define.Field("planet", Nullable PlanetType, "Gets planet", [ Define.Input("id", StringType) ], fun ctx _ -> getPlanet (ctx.Arg("id")))
+                Define.Field("hero", Nullable HumanType, "Gets human hero", [ Define.Input("id", StringType) ], fun ctx _ -> ctx.Arg("id") |> Result.map getHuman)
+                Define.Field("droid", Nullable DroidType, "Gets droid", [ Define.Input("id", StringType) ], fun ctx _ -> ctx.Arg("id") |> Result.map getDroid)
+                Define.Field("planet", Nullable PlanetType, "Gets planet", [ Define.Input("id", StringType) ], fun ctx _ -> ctx.Arg("id") |> Result.map getPlanet)
                 Define.Field("characters", ListOf CharacterType, "Gets characters", fun _ _ -> characters) ])
 
     let Subscription =
@@ -204,7 +205,7 @@ module Schema =
                     PlanetType,
                     "Watches to see if a planet is a moon.",
                     [ Define.Input("id", StringType) ],
-                    (fun ctx _ p -> if ctx.Arg("id") = p.Id then Some p else None)) ])
+                    (fun ctx _ p -> if ctx.TryArg("id") = Some p.Id then Some p else None)) ])
 
     let schemaConfig = SchemaConfig.Default
 
@@ -218,16 +219,18 @@ module Schema =
                     "Defines if a planet is actually a moon or not.",
                     [ Define.Input("id", StringType); Define.Input("isMoon", BooleanType) ],
                     fun ctx _ ->
-                        getPlanet (ctx.Arg("id"))
-                        |> Option.map (fun x ->
-                            x.SetMoon(Some(ctx.Arg("isMoon"))) |> ignore
-                            schemaConfig.SubscriptionProvider.Publish<Planet> "watchMoon" x
-                            schemaConfig.LiveFieldSubscriptionProvider.Publish<Planet> "Planet" "isMoon" x
-                            x))])
+                        ctx.Arg("id")
+                        |> Result.map (fun id ->
+                            getPlanet id
+                            |> Option.map (fun x ->
+                                x.SetMoon(ctx.TryArg("isMoon")) |> ignore
+                                schemaConfig.SubscriptionProvider.Publish<Planet> "watchMoon" x
+                                schemaConfig.LiveFieldSubscriptionProvider.Publish<Planet> "Planet" "isMoon" x
+                                x)))])
 
     let schema : ISchema<Root> = upcast Schema(Query, Mutation, Subscription, schemaConfig)
 
-    let middlewares = 
+    let middlewares =
         [ Define.QueryWeightMiddleware(2.0, true)
           Define.ObjectListFilterMiddleware<Human, Character option>(true)
           Define.ObjectListFilterMiddleware<Droid, Character option>(true)

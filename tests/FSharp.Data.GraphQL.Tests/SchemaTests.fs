@@ -46,8 +46,8 @@ let ``Schema config should be able to override default error handling`` () =
     let TestType =
         Define.Object<obj>("TestType",
             [ Define.Field("passing", StringType, fun _ _ -> "ok")
-              Define.Field("failing1", Nullable StringType, fun _ _ -> failwith "not ok" )
-              Define.Field("failing2", Nullable StringType, fun _ _ -> failwith "not ok" ) ])
+              Define.Field("failing1", Nullable StringType, fun _ _ -> failwith "not ok" |> Some)
+              Define.Field("failing2", Nullable StringType, fun _ _ -> failwith "not ok" |> Some) ])
     let schema = Schema(Define.Object("Query", [ Define.Field("test", TestType, fun _ () -> obj())]), config = conf)
     let query = """
     {

@@ -27,8 +27,8 @@ let TestComplexScalar =
              match i with
              | Variable e -> e.GetString()
              | InlineConstant (StringValue s) -> s
-         if value = "SerializedValue" then Some "DeserializedValue" else None),
-    coerceOutput = (fun value -> if value = upcast "DeserializedValue" then Some "SerializedValue" else None))
+         if value = "SerializedValue" then Ok "DeserializedValue" else Error List.empty),
+    coerceOutput = (fun value -> if value = upcast "DeserializedValue" then Ok "SerializedValue" else Error List.empty))
 
 type TestInput = {
     a: string option

@@ -45,7 +45,7 @@ let ``Execute handles execution of abstract types: isTypeOf is used to resolve r
         isTypeOf = is<Dog>,
         interfaces = [ PetType ],
         fields = [
-            Define.Field("name", StringType, resolve = fun _ d -> d.Name)
+            Define.Field("name", StringType, resolve = fun _ (d : Dog) -> d.Name)
             Define.Field("woofs", BooleanType, fun _ d -> d.Woofs)
         ])
     let CatType =
@@ -54,7 +54,7 @@ let ``Execute handles execution of abstract types: isTypeOf is used to resolve r
         isTypeOf = is<Cat>,
         interfaces = [ PetType ],
         fields = [
-            Define.Field("name", StringType, resolve = fun _ c -> c.Name)
+            Define.Field("name", StringType, resolve = fun _ (c : Cat) -> c.Name)
             Define.Field("meows", BooleanType, fun _ c -> c.Meows)
         ])
     let schema =

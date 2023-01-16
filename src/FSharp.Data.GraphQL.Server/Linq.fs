@@ -7,10 +7,11 @@ open System.Collections
 open System.Collections.Generic
 open System.Linq
 open System.Linq.Expressions
-open FSharp.Reflection
+open FSharp.Collections.Immutable
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Types.Patterns
 open FSharp.Quotations
+open FSharp.Reflection
 
 /// Record defining an argument resolved as part of the property tracker.
 [<CustomComparison;CustomEquality>]
@@ -33,7 +34,7 @@ type Arg =
             | _ -> failwithf "Cannot compare Arg to %O" (y.GetType())
 
 /// A track is used to represend a single member access statement in F# quotation expressions.
-/// It can be represented as (member: from -> to), where `member` in name of field/property getter,
+/// It can be represented as (member: from -> to), where `member` is name of field/property getter,
 /// `from` determines a type, which member is accessed and `to` a returned type of a member.
 [<CustomComparison; CustomEquality>]
 type Track =
@@ -94,12 +95,12 @@ let inline private flip fn a b = fn b a
 let inline private argVal vars argDef argOpt  =
     match argOpt with
     | Some arg -> Execution.argumentValue vars argDef arg
-    | None -> argDef.DefaultValue
+    | None -> Ok argDef.DefaultValue
 
 /// Resolves an object representing one of the supported arguments
 /// given a variables set and GraphQL input data.
 let private resolveLinqArg vars (name, argdef, arg) =
-    argVal vars argdef arg |> Option.map (fun v -> { Arg.Name = name; Value = v })
+    argVal vars argdef arg |> Result.map (Option.map (fun v -> { Arg.Name = name; Value = v }))
 
 let rec private unwrapType =
     function
@@ -109,6 +110,7 @@ let rec private unwrapType =
 
 open System.Reflection
 open System.Collections.Immutable
+open FSharp.Collections
 
 let private bindingFlags = BindingFlags.Instance|||BindingFlags.IgnoreCase|||BindingFlags.Public
 let private memberExpr (t: Type) name parameter =
@@ -243,13 +245,17 @@ let private applyLast: ArgApplication = fun expression callable ->
 /// from a given ExecutionInfo and variables collection
 let private linqArgs vars info =
     let argDefs = info.Definition.Args
-    if Array.isEmpty argDefs then []
+    if Array.isEmpty argDefs then Ok []
     else
         let args = info.Ast.Arguments
-        argDefs
-        |> Array.map (fun a -> (a.Name, a, args |> List.tryFind (fun x -> x.Name = a.Name)))
-        |> Array.choose (resolveLinqArg vars)
-        |> Array.toList
+        let argResults =
+            argDefs
+            |> Seq.map (fun a -> (a.Name, a, args |> List.tryFind (fun x -> x.Name = a.Name)))
+            |> Seq.map (resolveLinqArg vars)
+            |> Seq.toFlatList
+        match argResults with
+        | ListErrors errs -> Error errs
+        | ListValues args -> args |> List.choose id |> Ok
 
 let rec private track set e =
     match e with
@@ -394,9 +400,15 @@ let rec private infoComposer (root: Tracker) (allTracks: Set<Tracker>) : Set<Tra
 let rec private compose vars ir =
     let (IR(info, directs, children)) = ir
     let rootTrack = { Name = None; ParentType = info.ParentDef.Type; ReturnType = info.ReturnDef.Type }
-    let root = Direct(rootTrack, linqArgs vars info)
-    let composed = infoComposer root directs
-    IR(info, composed, children |> List.map (compose vars))
+    match linqArgs vars info with
+    | Error errs -> Error errs
+    | Ok args ->
+        let root = Direct(rootTrack, args)
+        let composed = infoComposer root directs
+        let composedChildrenResults = children |> List.map (compose vars)
+        match composedChildrenResults with
+        | ListErrors errs -> Error errs
+        | ListValues composedChildren -> Ok <| IR(info, composed, composedChildren)
 
 /// Get unrelated tracks from current info and its children (if any)
 /// Returned set of trackers ALWAYS consists of Direct trackers only
@@ -582,15 +594,19 @@ let private defaultArgApplicators: Map<string, ArgApplication> =
 /// and can can cause eager overfetching.
 /// </para>
 /// </summary>
-let rec tracker (vars: ImmutableDictionary<string, obj>) (info: ExecutionInfo) : Tracker  =
+let rec tracker (vars: ImmutableDictionary<string, obj>) (info: ExecutionInfo) : Tracker GQLResult =
     let ir = getTracks Set.empty info
-    let composed = compose vars ir
+    match compose vars ir with
+    | Error errs -> Error errs
+    | Ok composed ->
     let (IR(_, trackers, children)) = composed
-    join trackers children |> Seq.head
+    join trackers children |> Seq.head |> Ok
 
-let private toLinq info (query: IQueryable<'Source>) variables (argApplicators: Map<string, ArgApplication>) : IQueryable<'Source> =
+let private toLinq info (query: IQueryable<'Source>) variables (argApplicators: Map<string, ArgApplication>) : IQueryable<'Source> GQLResult =
     let parameter = Expression.Parameter (query.GetType())
-    let ir = tracker variables info
+    match tracker variables info with
+    | Error errs -> Error errs
+    | Ok ir ->
     let expr = construct argApplicators ir parameter
     let compiled =
         match expr with
@@ -606,8 +622,8 @@ let private toLinq info (query: IQueryable<'Source>) variables (argApplicators: 
             Expression.Lambda(call, [| parameter |]).Compile()
     let result = compiled.DynamicInvoke [| box query |]
     match result with
-    | :? IQueryable<'Source> as q -> q
-    | :? IEnumerable<'Source> as e -> e.AsQueryable()
+    | :? IQueryable<'Source> as q -> Ok q
+    | :? IEnumerable<'Source> as e -> Ok <| e.AsQueryable()
     | _ -> failwithf "Unrecognized type '%O' is neither IEnumerable<%O> nor IQueryable<%O>" (result.GetType()) typeof<'Source> typeof<'Source>
 
 type System.Linq.IQueryable<'Source> with
@@ -629,7 +645,7 @@ type System.Linq.IQueryable<'Source> with
     /// <param name="info">Execution info data to be applied on the queryable.</param>
     /// <param name="variables">Optional map with client-provided arguments used to resolve argument values.</param>
     /// <param name="applicators">Map of applicators used to define LINQ expression mutations based on GraphQL arguments.</param>
-    member this.Apply(info: ExecutionInfo, ?variables: ImmutableDictionary<string, obj>, ?applicators: Map<string, ArgApplication>) : IQueryable<'Source> =
+    member this.Apply(info: ExecutionInfo, ?variables: ImmutableDictionary<string, obj>, ?applicators: Map<string, ArgApplication>) : IQueryable<'Source> GQLResult =
         let appl =
             match applicators with
             | None -> defaultArgApplicators

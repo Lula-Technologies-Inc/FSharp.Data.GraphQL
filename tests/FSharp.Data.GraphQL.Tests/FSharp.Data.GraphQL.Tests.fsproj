@@ -17,6 +17,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="FSharpPlus" />
+    <PackageReference Include="FsToolkit.ErrorHandling" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.utility" />
     <PackageReference Include="xunit.runner.visualstudio" />

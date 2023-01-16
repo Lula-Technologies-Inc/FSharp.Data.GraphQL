@@ -68,8 +68,7 @@ module GlobalId =
                 description = "Fetches an object given its ID",
                 args = [ Define.Input("id", IDType, description = "Identifier of an object") ],
                 resolve = fun ctx value ->
-                    let id = ctx.Arg("id")
-                    resolve ctx value id)
+                    ctx.Arg("id") |> Result.map (fun id -> resolve ctx value id))
 
         /// Field definition for the Relay Node interface. Node interfaces are used
         /// by Relay to identify uniqe components - they need to implement and `id`

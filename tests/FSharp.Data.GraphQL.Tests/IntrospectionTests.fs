@@ -336,10 +336,10 @@ let ``Introspection works with query and mutation sharing same generic param`` =
             [ Define.Input("name", StringType) ])
     let query =
         Define.Object<User list>("Query",
-            [ Define.Field("users", ListOf user, "Query object", [ Define.Input("input", userInput) ], fun _ u -> u) ])
+            [ Define.Field("users", ListOf user, "Query object", [ Define.Input("input", userInput) ], fun _ (u : User list) -> u) ])
     let mutation =
         Define.Object<User list>("Mutation",
-            [ Define.Field("addUser", user, "Adds an user", [ Define.Input("input", userInput) ], fun _ u -> u |> List.head)])
+            [ Define.Field("addUser", user, "Adds an user", [ Define.Input("input", userInput) ], fun _ (u : User list) -> u |> List.head)])
     let schema = Schema(query, mutation)
     Executor(schema).AsyncExecute(Introspection.IntrospectionQuery) |> sync |> ignore
 

@@ -36,7 +36,7 @@ let ``Execute uses default resolve to accesses properties`` () =
 [<Fact>]
 let ``Execute uses provided resolve function to accesses properties`` () =
     let schema =
-        testSchema [ Define.Field ("test", StringType, "", [ Define.Input ("a", StringType) ], resolve = fun ctx d -> d.Test + ctx.Arg ("a")) ]
+        testSchema [ Define.Field ("test", StringType, "", [ Define.Input ("a", StringType) ], resolve = fun ctx d -> ctx.Arg ("a") |> Result.map (fun a -> d.Test + a)) ]
 
     let expected = NameValueLookup.ofList [ "test", "testValueString" :> obj ]
 
@@ -102,8 +102,7 @@ let ``Execute resolves enums arguments from their names`` () =
                          [ Define.Input ("fruit", fruitType, defaultValue = Cherry) ],
                          resolve =
                              fun ctx _ ->
-                                 let fruit = ctx.Arg "fruit"
-                                 $"You asked for {Fruit.show fruit}"
+                                 ctx.Arg "fruit" |> Result.map (fun fruit -> $"You asked for {Fruit.show fruit}")
                      ) ]
 
     let expected = NameValueLookup.ofList [ "foo", box "You asked for dragon fruit" ]

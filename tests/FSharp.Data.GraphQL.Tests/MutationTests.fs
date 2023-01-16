@@ -9,6 +9,7 @@ open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Parser
 open FSharp.Data.GraphQL.Execution
+open FsToolkit.ErrorHandling
 
 type NumberHolder = { mutable Number: int }
 type Root =
@@ -37,10 +38,10 @@ let schema =
     mutation =
       Define.Object("Mutation",
       [
-        Define.Field("immediatelyChangeTheNumber", NumberHolder, "", [ Define.Input("newNumber", IntType) ], fun ctx (x:Root) -> x.ChangeImmediatelly(ctx.Arg("newNumber")))
-        Define.AsyncField("promiseToChangeTheNumber", NumberHolder, "", [ Define.Input("newNumber", IntType) ], fun ctx (x:Root) -> x.AsyncChange(ctx.Arg("newNumber")))
-        Define.Field("failToChangeTheNumber", Nullable NumberHolder, "", [ Define.Input("newNumber", IntType) ], fun ctx (x:Root) -> x.ChangeFail(ctx.Arg("newNumber")))
-        Define.AsyncField("promiseAndFailToChangeTheNumber", Nullable NumberHolder, "", [ Define.Input("newNumber", IntType) ], fun ctx (x:Root) -> x.AsyncChangeFail(ctx.Arg("newNumber")))
+        Define.Field("immediatelyChangeTheNumber", NumberHolder, "", [ Define.Input("newNumber", IntType) ], fun ctx (x:Root) -> ctx.Arg("newNumber") |> Result.map x.ChangeImmediatelly)
+        Define.AsyncField("promiseToChangeTheNumber", NumberHolder, "", [ Define.Input("newNumber", IntType) ], fun ctx (x:Root) -> asyncResult { let! newNumber = ctx.Arg("newNumber") in return! x.AsyncChange newNumber })
+        Define.Field("failToChangeTheNumber", Nullable NumberHolder, "", [ Define.Input("newNumber", IntType) ], fun ctx (x:Root) -> ctx.Arg("newNumber") |> Result.map x.ChangeFail)
+        Define.AsyncField("promiseAndFailToChangeTheNumber", Nullable NumberHolder, "", [ Define.Input("newNumber", IntType) ], fun ctx (x:Root) -> asyncResult { let! newNumber = ctx.Arg("newNumber") in return! x.AsyncChangeFail newNumber })
     ]))
 
 [<Fact>]

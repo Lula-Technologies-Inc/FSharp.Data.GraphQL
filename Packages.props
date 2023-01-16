@@ -12,6 +12,7 @@
     <PackageReference Include="FSharp.Core" Version="$(FSharpCoreVersion)">
       <ExcludeAssets>contentFiles</ExcludeAssets>
     </PackageReference>
+    <PackageReference Update="FSharp.Collections.Immutable" Version="2.0.0-*" />
     <PackageReference Update="FSharp.Control.FusionTasks" Version="2.6.*" />
     <PackageReference Update="FSharp.Control.Reactive" Version="5.0.*" />
     <PackageReference Update="FSharp.SystemTextJson" Version="1.*" />
@@ -26,6 +27,8 @@
   <ItemGroup Label="Test platform">
     <PackageReference Update="BenchmarkDotNet" Version="0.13.2" />
     <PackageReference Update="BenchmarkDotNet.Annotations" Version="0.*" />
+    <PackageReference Update="FSharpPlus" Version="1.3.*" />
+    <PackageReference Update="FsToolkit.ErrorHandling" Version="4.2.*" />
     <PackageReference Update="Microsoft.NET.Test.Sdk" Version="17.4.*" />
     <PackageReference Update="Microsoft.TestPlatform.TestHost" Version="17.3.*" />
     <PackageReference Update="Microsoft.TestPlatform.ObjectModel" Version="17.3.*" />

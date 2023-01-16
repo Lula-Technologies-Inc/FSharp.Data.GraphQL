@@ -110,7 +110,7 @@ module Definitions =
                 description = "An edge in a connection from an object to another object of type " + n.Name,
                 fields = [
                     Define.Field("cursor", StringType, "A cursor for use in pagination", fun _ edge -> edge.Cursor)
-                    Define.Field("node", nodeType, "The item at the end of the edge. Must NOT be an enumerable collection.", fun _ edge -> edge.Node) ])
+                    Define.Field("node", nodeType, "The item at the end of the edge. Must NOT be an enumerable collection.", fun _ (edge : Edge<'Node>) -> edge.Node) ])
         | _ -> failwithf "Unexpected value of nodeType: %O" nodeType
 
     /// Converts existing output type definition into Relay-compatible connection.

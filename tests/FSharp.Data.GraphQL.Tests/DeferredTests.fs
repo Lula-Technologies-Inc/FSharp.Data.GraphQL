@@ -90,7 +90,7 @@ let AType =
     Define.Object<A>(
         "A", [
             Define.Field("a", Nullable StringType, resolve = fun _ a -> Some a.a)
-            Define.Field("id", Nullable StringType, resolve = fun _ a -> Some a.id)
+            Define.Field("id", Nullable StringType, resolve = fun _ (a : A) -> Some a.id)
         ])
 
 let BType =
@@ -110,7 +110,7 @@ let InterfaceType =
 let CType =
     Define.Object<C>(
         name ="C",
-        fields = [ Define.Field("id", StringType, (fun _ (c : C) -> c.id)); Define.Field("value", Nullable StringType, (fun _ c -> Some c.value)) ],
+        fields = [ Define.Field("id", StringType, (fun _ (c : C) -> c.id)); Define.Field("value", Nullable StringType, (fun _ (c : C) -> Some c.value)) ],
         interfaces = [ InterfaceType ],
         isTypeOf = (fun o -> o :? C))
 
@@ -139,31 +139,31 @@ let rec InnerDataType =
         name = "InnerData",
         fieldsFn = fun () ->
         [
-            Define.Field("a", StringType, (fun _ d -> d.a))
+            Define.Field("a", StringType, (fun _ (d : InnerTestSubject) -> d.a))
             Define.Field("innerList", Nullable (ListOf InnerDataType), (fun _ d -> Some d.innerList))
         ])
 
 let AsyncDataType =
     Define.Object<AsyncTestSubject>(
         name = "AsyncData",
-        fieldsFn = fun () -> [ Define.AsyncField("value", Nullable StringType, (fun _ d -> d.value )) ])
+        fieldsFn = fun () -> [ Define.AsyncField("value", Nullable StringType, (fun _ (d : AsyncTestSubject) -> d.value )) ])
 
 let NonNullAsyncDataType =
     Define.Object<NonNullAsyncTestSubject>(
         name = "NonNullAsyncData",
-        fieldsFn = fun () -> [ Define.AsyncField("value", StringType, (fun _ d -> d.value )) ])
+        fieldsFn = fun () -> [ Define.AsyncField("value", StringType, (fun _ (d : NonNullAsyncTestSubject) -> d.value)) ])
 
 let DataType =
     Define.Object<TestSubject>(
         name = "Data",
         fieldsFn = fun () ->
         [
-            Define.Field("id", StringType, (fun _ d -> d.id))
-            Define.Field("a", Nullable StringType, (fun _ d -> Some d.a))
-            Define.Field("b", Nullable StringType, (fun _ d -> Some d.b))
+            Define.Field("id", StringType, (fun _ (d : TestSubject) -> d.id))
+            Define.Field("a", Nullable StringType, (fun _ (d : TestSubject) -> Some d.a))
+            Define.Field("b", Nullable StringType, (fun _ (d : TestSubject) -> Some d.b))
             Define.Field("union", Nullable UnionType, (fun _ d -> Some d.union))
             Define.Field("list", Nullable (ListOf UnionType), (fun _ d -> Some d.list))
-            Define.Field("innerList", Nullable (ListOf InnerDataType), (fun _ d -> Some d.innerList))
+            Define.Field("innerList", Nullable (ListOf InnerDataType), (fun _ (d : TestSubject) -> Some d.innerList))
             Define.Field("live", StringType, (fun _ d -> d.live))
             Define.Field("iface", Nullable InterfaceType, (fun _ d -> Some d.iface))
             Define.Field("ifaceList", Nullable (ListOf InterfaceType), (fun _ d -> Some d.ifaceList))

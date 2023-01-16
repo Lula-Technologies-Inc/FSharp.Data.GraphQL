@@ -1,5 +1,7 @@
 namespace rec FSharp.Data.GraphQL
 
+open System.Collections.Generic
+
 module internal ValueOption =
 
     let toOption value =
@@ -23,3 +25,8 @@ module internal ValueTuple =
 
     let fstv struct (a,_) =  a
     let sndv struct (_,b) =  b
+
+[<AutoOpen>]
+module KeyValuePair =
+
+    let kvp key value = KeyValuePair(key, value)

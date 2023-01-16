@@ -144,17 +144,17 @@ type SchemaConfig =
                 Define.Input(
                     "interval",
                     Nullable IntType,
-                    defaultValue = streamOptions.Interval,
-                    description = "An optional argument used to buffer stream results. " +
-                        "When it's value is greater than zero, stream results will be buffered for milliseconds equal to the value, then sent to the client. " +
-                        "After that, starts buffering again until all results are streamed.")
+                    ?defaultValue = streamOptions.Interval,
+                    description = """An optional argument used to buffer stream results.
+When it's value is greater than zero, stream results will be buffered for milliseconds equal to the value, then sent to the client.
+After that, starts buffering again until all results are streamed.""")
                 Define.Input(
                     "preferredBatchSize",
                     Nullable IntType,
-                    defaultValue = streamOptions.PreferredBatchSize,
-                    description = "An optional argument used to buffer stream results. " +
-                        "When it's value is greater than zero, stream results will be buffered until item count reaches this value, then sent to the client. " +
-                        "After that, starts buffering again until all results are streamed.") |]
+                    ?defaultValue = streamOptions.PreferredBatchSize,
+                    description = """An optional argument used to buffer stream results.
+When it's value is greater than zero, stream results will be buffered until item count reaches this value, then sent to the client.
+After that, starts buffering again until all results are streamed.""") |]
             { StreamDirective with Args = args }
         { SchemaConfig.Default with
             Directives = [ IncludeDirective; SkipDirective; DeferDirective; streamDirective; LiveDirective ] }

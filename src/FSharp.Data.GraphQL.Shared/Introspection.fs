@@ -181,11 +181,11 @@ let rec __Type =
     fieldsFn = fun () ->
     [
         Define.Field("kind", __TypeKind, fun _ t -> t.Kind)
-        Define.Field("name", Nullable StringType, resolve = fun _ t -> t.Name)
-        Define.Field("description", Nullable StringType, resolve = fun _ t -> t.Description)
+        Define.Field("name", Nullable StringType, resolve = fun _ (t : IntrospectionTypeRef) -> t.Name)
+        Define.Field("description", Nullable StringType, resolve = fun _ (t : IntrospectionTypeRef) -> t.Description)
         Define.Field("fields", Nullable (ListOf __Field),
             args = [Define.Input("includeDeprecated", BooleanType, false) ],
-            resolve = fun ctx t ->
+            resolve = fun ctx (t : IntrospectionTypeRef) ->
                 match t.Name with
                 | None -> None
                 | Some name ->
@@ -193,20 +193,20 @@ let rec __Type =
                     match ctx.TryArg "includeDeprecated" with
                     | Some true ->  found.Fields |> Option.map Array.toSeq
                     | _ -> found.Fields |> Option.map (fun x -> upcast Array.filter (fun f -> not f.IsDeprecated) x))
-        Define.Field("interfaces", Nullable (ListOf __Type), resolve = fun ctx t ->
+        Define.Field("interfaces", Nullable (ListOf __Type), resolve = fun ctx (t : IntrospectionTypeRef) ->
             match t.Name with
             | None -> None
             | Some name ->
                 let found = findIntrospected ctx name
                 found.Interfaces |> Option.map Array.toSeq )
-        Define.Field("possibleTypes", Nullable (ListOf __Type), resolve = fun ctx t ->
+        Define.Field("possibleTypes", Nullable (ListOf __Type), resolve = fun ctx (t : IntrospectionTypeRef) ->
             match t.Name with
             | None -> None
             | Some name ->
                 let found = findIntrospected ctx name
                 found.PossibleTypes |> Option.map Array.toSeq)
         Define.Field("enumValues", Nullable (ListOf __EnumValue),
-            args = [Define.Input("includeDeprecated", BooleanType, false) ], resolve = fun ctx t ->
+            args = [Define.Input("includeDeprecated", BooleanType, false) ], resolve = fun ctx (t : IntrospectionTypeRef) ->
             match t.Name with
             | None -> None
             | Some name ->
@@ -214,7 +214,7 @@ let rec __Type =
                 match ctx.TryArg "includeDeprecated" with
                 | None | Some false -> found.EnumValues |> Option.map Array.toSeq
                 | Some true -> found.EnumValues |> Option.map (fun x -> upcast  (x |> Array.filter (fun f -> not f.IsDeprecated))))
-        Define.Field("inputFields", Nullable (ListOf __InputValue), resolve = fun ctx t ->
+        Define.Field("inputFields", Nullable (ListOf __InputValue), resolve = fun ctx (t : IntrospectionTypeRef) ->
             match t.Name with
             | None -> None
             | Some name ->
@@ -232,9 +232,9 @@ and __InputValue =
     description = "Arguments provided to Fields or Directives and the input fields of an InputObject are represented as Input Values which describe their type and optionally a default value.",
     fieldsFn = fun () ->
     [
-        Define.Field("name", StringType, resolve = fun _ f -> f.Name)
-        Define.Field("description", Nullable StringType, resolve = fun _ f -> f.Description)
-        Define.Field("type", __Type, resolve = fun _ f -> f.Type)
+        Define.Field("name", StringType, resolve = fun _ (f : IntrospectionInputVal) -> f.Name)
+        Define.Field("description", Nullable StringType, resolve = fun _ (f : IntrospectionInputVal) -> f.Description)
+        Define.Field("type", __Type, resolve = fun _ (f : IntrospectionInputVal) -> f.Type)
         Define.Field("defaultValue", Nullable StringType, fun _ f -> f.DefaultValue)
     ])
 
@@ -263,10 +263,10 @@ and __EnumValue =
     description = "One possible value for a given Enum. Enum values are unique values, not a placeholder for a string or numeric value. However an Enum value is returned in a JSON response as a string.",
     fieldsFn = fun () ->
     [
-        Define.Field("name", StringType, resolve = fun _ e -> e.Name)
-        Define.Field("description", Nullable StringType, resolve = fun _ e -> e.Description)
-        Define.Field("isDeprecated", BooleanType, resolve = fun _ e -> Option.isSome e.DeprecationReason)
-        Define.Field("deprecationReason", Nullable StringType, resolve = fun _ e -> e.DeprecationReason)
+        Define.Field("name", StringType, resolve = fun _ (e : IntrospectionEnumVal) -> e.Name)
+        Define.Field("description", Nullable StringType, resolve = fun _ (e : IntrospectionEnumVal) -> e.Description)
+        Define.Field("isDeprecated", BooleanType, resolve = fun _ (e : IntrospectionEnumVal) -> Option.isSome e.DeprecationReason)
+        Define.Field("deprecationReason", Nullable StringType, resolve = fun _ (e : IntrospectionEnumVal) -> e.DeprecationReason)
     ])
 
 and private oneOf (compared: DirectiveLocation []) (comparand: DirectiveLocation) =
@@ -284,10 +284,10 @@ and __Directive =
     description = """A Directive provides a way to describe alternate runtime execution and type validation behavior in a GraphQL document. In some cases, you need to provide options to alter GraphQL’s execution behavior in ways field arguments will not suffice, such as conditionally including or skipping a field. Directives provide this by describing additional information to the executor.""",
     fieldsFn = fun () ->
     [
-        Define.Field("name", StringType, resolve = fun _ directive -> directive.Name)
-        Define.Field("description", Nullable StringType, resolve = fun _ directive -> directive.Description)
+        Define.Field("name", StringType, resolve = fun _ (directive : IntrospectionDirective) -> directive.Name)
+        Define.Field("description", Nullable StringType, resolve = fun _ (directive : IntrospectionDirective) -> directive.Description)
         Define.Field("locations", ListOf __DirectiveLocation, resolve = fun _ directive -> directive.Locations)
-        Define.Field("args", ListOf __InputValue, resolve = fun _ directive -> directive.Args)
+        Define.Field("args", ListOf __InputValue, resolve = fun _ (directive : IntrospectionDirective) -> directive.Args)
         Define.Field("onOperation", BooleanType, resolve = fun _ d -> d.Locations |> Seq.exists (oneOf [| DirectiveLocation.QUERY; DirectiveLocation.MUTATION; DirectiveLocation.SUBSCRIPTION |]))
         Define.Field("onFragment", BooleanType, resolve = fun _ d -> d.Locations |> Seq.exists (oneOf [| DirectiveLocation.FRAGMENT_SPREAD; DirectiveLocation.INLINE_FRAGMENT; DirectiveLocation.FRAGMENT_DEFINITION |]))
         Define.Field("onField", BooleanType, resolve = fun _ d -> d.Locations |> Seq.exists (oneOf [| DirectiveLocation.FIELD |]))

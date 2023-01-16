@@ -2,8 +2,12 @@ namespace FSharp.Data.GraphQL
 
 open System
 open System.Collections.Generic
+open System.Threading.Tasks
 
 #nowarn "25"
+
+type GQLResult<'T> = Result<'T, IGQLError list>
+type GQLResult = GQLResult<obj>
 
 /// <summary>
 /// A struct used to operate on both synchronous values and Async computations
@@ -73,7 +77,7 @@ module AsyncVal =
 
 
     /// Applies rescue fn in case when contained Async value throws an exception.
-    let rescue path (fn: exn -> IGQLError list) (x: AsyncVal<'t>) =
+    let rescue (fn: exn -> IGQLError list) (x: AsyncVal<'t>) =
         match x with
         | Value v -> Value(Ok v)
         | Async a ->
@@ -84,8 +88,6 @@ module AsyncVal =
                 with e -> return fn e |> Error
             })
         | Failure f -> Value(fn f |> Error)
-        |> map (Result.mapError (List.map (GQLProblemDetails.OfFieldError (path |> List.rev))))
-
 
     /// Folds content of AsyncVal over provided initial state zero using provided fn.
     /// Returns new AsyncVal as a result.

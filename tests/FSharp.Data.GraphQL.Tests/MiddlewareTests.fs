@@ -56,8 +56,8 @@ let executor =
             name = "A",
             isTypeOf = (fun o -> o :? A),
             fieldsFn = fun () ->
-                [ Define.Field("id", IntType, resolve = fun _ a -> a.id)
-                  Define.Field("value", StringType, resolve = fun _ a -> a.value)
+                [ Define.Field("id", IntType, resolve = fun _ (a : A) -> a.id)
+                  Define.Field("value", StringType, resolve = fun _ (a : A) -> a.value)
                   Define.Field("subjects", Nullable (ListOf (Nullable SubjectType)),
                     resolve = fun _ (a : A) -> a.subjects |> List.map getSubject |> List.toSeq |> Some)
                     .WithQueryWeight(1.0) ])
@@ -75,8 +75,8 @@ let executor =
         Define.Object<Root>(
             name = "Query",
             fields =
-                [ Define.Field("A", Nullable AType, "A Field", [ Define.Input("id", IntType) ], resolve = fun ctx _ -> getA (ctx.Arg("id")))
-                  Define.Field("B", Nullable BType, "B Field", [ Define.Input("id", IntType) ], resolve = fun ctx _ -> getB (ctx.Arg("id"))) ])
+                [ Define.Field("A", Nullable AType, "A Field", [ Define.Input("id", IntType) ], resolve = fun ctx _ -> ctx.Arg("id") |> Result.map getA)
+                  Define.Field("B", Nullable BType, "B Field", [ Define.Input("id", IntType) ], resolve = fun ctx _ -> ctx.Arg("id") |> Result.map getB) ])
     let schema = Schema(Query)
     let middleware =
         [ Define.QueryWeightMiddleware(2.0, true)
@@ -500,12 +500,12 @@ let ``Object list filter: should return filter information in Metadata``() =
                 ]
             ]
         ]
-    let expectedFilter =
-        "subjects", And (Equals { FieldName = "id"; Value = 2L }, StartsWith { FieldName = "value"; Value = "A" })
+    let expectedFilter : string * GQLResult<_> =
+        "subjects", Ok <| And (Equals { FieldName = "id"; Value = 2L }, StartsWith { FieldName = "value"; Value = "A" })
     let result = execute query
     ensureDirect result <| fun data errors ->
         empty errors
         data |> equals (upcast expected)
     result.Metadata.TryFind<float>("queryWeightThreshold") |> equals (Some 2.0)
     result.Metadata.TryFind<float>("queryWeight") |> equals (Some 1.0)
-    result.Metadata.TryFind<(string * ObjectListFilter) list>("filters") |> equals (Some [ expectedFilter ])
+    result.Metadata.TryFind<(string * GQLResult<ObjectListFilter>) list>("filters") |> equals (Some [ expectedFilter ])

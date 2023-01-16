@@ -104,7 +104,7 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
             match executionPlan.ValidationResult with
             | Validation.Success ->
                 try
-                    let errors = System.Collections.Concurrent.ConcurrentBag<exn>()
+                    let errors = System.Collections.Concurrent.ConcurrentBag<GQLProblemDetails>()
                     let root = data |> Option.map box |> Option.toObj
                     let variables = coerceVariables executionPlan.Variables variables
                     let executionCtx =
@@ -112,7 +112,7 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
                           ExecutionPlan = executionPlan
                           RootValue = root
                           Variables = variables
-                          Errors = errors
+                          Errors = errors // TODO: merge into all returned errors
                           FieldExecuteMap = fieldExecuteMap
                           Metadata = executionPlan.Metadata }
                     let! res = runMiddlewares (fun x -> x.ExecuteOperationAsync) executionCtx executeOperation |> AsyncVal.toAsync

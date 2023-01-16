@@ -2,6 +2,7 @@ namespace FSharp.Data.GraphQL.Benchmarks
 
 #nowarn "40"
 
+open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Server.Middleware
 
@@ -42,7 +43,7 @@ module SchemaDefinition =
                         [ Define.Field("id", StringType, resolve = fun _ person -> person.Id)
                           Define.Field("name", Nullable StringType, resolve = fun _ person -> person.Name)
                           Define.Field("friends", Nullable(ListOf(Nullable Person)),
-                                       resolve = fun _ person ->
+                                       resolve = fun _ (person : Person) ->
                                            person.Friends
                                            |> List.map getPerson
                                            |> List.toSeq
@@ -54,7 +55,7 @@ module SchemaDefinition =
           (name = "Query",
            fields = [ Define.Field
                           ("hero", Nullable Person, "Retrieves a person by provided id", [ Define.Input("id", StringType) ],
-                           fun ctx () -> getPerson (ctx.Arg("id"))) ])
+                           fun ctx () -> ctx.Arg("id") |> Result.map getPerson) ])
 
 module QueryStrings =
     let simple = """{

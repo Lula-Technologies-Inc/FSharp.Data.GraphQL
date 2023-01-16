@@ -34,6 +34,7 @@
   <ItemGroup>
     <PackageReference Include="FParsec" />
     <PackageReference Include="FSharp.SystemTextJson" />
+    <PackageReference Include="FSharp.Collections.Immutable" />
     <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="System.Text.Json" />
     <PackageReference Condition="'$(TargetFramework)' == 'netstandard2.0'" Include="Portable.System.DateTimeOnly" VersionOverride="6.0.3" />
@@ -52,6 +53,7 @@
     <Compile Include="Ast.fs" />
     <Compile Include="AsyncVal.fs" />
     <Compile Include="TypeSystem.fs" />
+    <Compile Include="SchemaDefinitions.fs" />
     <Compile Include="Introspection.fs" />
     <Compile Include="Validation.fs" />
     <Compile Include="ValidationResultCache.fs" />

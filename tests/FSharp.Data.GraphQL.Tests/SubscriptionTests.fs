@@ -50,7 +50,7 @@ let SubscriptionField =
         ValueType,
         "Get's updated data",
         [ Define.Input("id", IntType) ],
-        fun ctx _ v -> if ctx.Arg("id") = v.Id then Some v else None)
+        fun ctx _ v -> if ctx.TryArg("id") = Some v.Id then Some v else None)
 
 let TaggedSubscriptionField =
     Define.SubscriptionField(
@@ -59,7 +59,7 @@ let TaggedSubscriptionField =
         ValueType,
         "Get's updated data if key is correct",
         [ Define.Input("id", IntType); Define.Input("key", StringType) ],
-        (fun ctx _ v -> if ctx.Arg("id") = v.Id then Some v else None),
+        (fun ctx _ v -> if ctx.TryArg("id") = Some v.Id then Some v else None),
         tagsResolver = (fun ctx -> Tags.from (ctx.Arg<string>("key"))))
 
 let AsyncSubscriptionField =
@@ -69,7 +69,7 @@ let AsyncSubscriptionField =
         ValueType,
         "Get's updated data asynchronously on the server",
         [ Define.Input("id", IntType) ],
-        fun ctx _ v -> async { return (if ctx.Arg("id") = v.Id then Some v else None) })
+        fun ctx _ v -> async { return (if ctx.TryArg("id") = Some v.Id then Some v else None) })
 
 let AsyncTaggedSubscriptionField =
     Define.AsyncSubscriptionField(
@@ -78,7 +78,7 @@ let AsyncTaggedSubscriptionField =
         ValueType,
         "Get's updated data asynchronously on the server if key is correct",
         [ Define.Input("id", IntType); Define.Input("key", StringType) ],
-        (fun ctx _ v -> async { return (if ctx.Arg("id") = v.Id then Some v else None) }),
+        (fun ctx _ v -> async { return (if ctx.TryArg("id") = Some v.Id then Some v else None) }),
         tagsResolver = (fun ctx -> Tags.from (ctx.Arg<string>("key"))))
 
 let schemaConfig = SchemaConfig.Default

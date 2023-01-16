@@ -106,20 +106,20 @@ let ``Execution handles basic tasks: executes arbitrary code`` () =
             "DeepDataType", [
                 Define.Field("a", StringType, (fun _ dt -> dt.a))
                 Define.Field("b", StringType, (fun _ dt -> dt.b))
-                Define.Field("c", (ListOf (Nullable StringType)), (fun _ dt -> dt.c))
+                Define.Field("c", (ListOf (Nullable StringType)), (fun _ (dt : DeepTestSubject) -> dt.c))
             ])
     let rec DataType =
       Define.Object<TestSubject>(
           "DataType",
           fieldsFn = fun () ->
           [
-            Define.Field("a", StringType, resolve = fun _ dt -> dt.a)
-            Define.Field("b", StringType, resolve = fun _ dt -> dt.b)
-            Define.Field("c", StringType, resolve = fun _ dt -> dt.c)
-            Define.Field("d", StringType, fun _ dt -> dt.d)
-            Define.Field("e", StringType, fun _ dt -> dt.e)
-            Define.Field("f", StringType, fun _ dt -> dt.f)
-            Define.Field("pic", StringType, "Picture resizer", [ Define.Input("size", Nullable IntType) ], fun ctx dt -> dt.pic(ctx.Arg("size")))
+            Define.Field("a", StringType, resolve = fun _ (t : TestSubject) -> t.a)
+            Define.Field("b", StringType, resolve = fun _ (t : TestSubject) -> t.b)
+            Define.Field("c", StringType, resolve = fun _ (t : TestSubject) -> t.c)
+            Define.Field("d", StringType, fun _ (t : TestSubject) -> t.d)
+            Define.Field("e", StringType, fun _ (t : TestSubject) -> t.e)
+            Define.Field("f", StringType, fun _ (t : TestSubject) -> t.f)
+            Define.Field("pic", StringType, "Picture resizer", [ Define.Input("size", Nullable IntType) ], fun ctx t -> ctx.Arg("size") |> Result.map t.pic)
             Define.AsyncField("promise", DataType, fun _ dt -> dt.promise)
             Define.Field("deep", DeepDataType, fun _ dt -> dt.deep)
         ])
@@ -158,7 +158,7 @@ let ``Execution handles basic tasks: merges parallel fragments`` () =
             Define.Field("a", StringType, fun _ _ -> "Apple")
             Define.Field("b", StringType, fun _ _ -> "Banana")
             Define.Field("c", StringType, fun _ _ -> "Cherry")
-            Define.Field("deep", Type, fun _ v -> v)
+            Define.Field("deep", Type, fun _ (v : obj) -> v)
         ])
 
     let schema = Schema(Type)
@@ -417,7 +417,7 @@ let ``Execution handles errors: exceptions`` () =
     let schema =
         Schema(Define.Object<unit>(
                  "Type", [
-                     Define.Field("a", StringType, fun _ _ -> failwith "Resolver Error!")
+                     Define.Field("a", StringType, fun _ _ -> failwith "Resolver Error!" |> Ok)
                  ]))
     let expectedErrors = [ GQLProblemDetails.Create ("Resolver Error!", [ box "a" ]) ]
     let result = sync <| Executor(schema).AsyncExecute("query Test { a }", ())
@@ -431,7 +431,7 @@ let ``Execution handles errors: nullable list fields`` () =
     let InnerObject =
         Define.Object<int>(
             "Inner", [
-                Define.Field("error", StringType, fun _ _ -> failwith "Resolver Error!")
+                Define.Field("error", StringType, fun _ _ -> failwith "Resolver Error!" |> Ok)
             ])
     let schema =
         Schema(Define.Object<unit>(
