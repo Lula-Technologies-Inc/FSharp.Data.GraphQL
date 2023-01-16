@@ -29,9 +29,10 @@ type Startup private () =
             log.LogError(EventId(), ex, "An unhandled exception has occurred while executing the request.")
             clearResponse >=> setStatusCode 500
 
-        if env.IsDevelopment() then
-            app.UseGraphQLPlayground("/playground") |> ignore
-            app.UseGraphQLVoyager("/voyager") |> ignore
+        app.UseGraphQLPlayground("/playground") |> ignore
+        app.UseGraphQLVoyager("/voyager") |> ignore
+        app.UseRouting() |> ignore
+        app.UseEndpoints(fun endpoints -> endpoints.MapBananaCakePop(new Microsoft.AspNetCore.Http.PathString("/cakePop")) |> ignore) |> ignore
 
         app
             .UseGiraffeErrorHandler(errorHandler)
