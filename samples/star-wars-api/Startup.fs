@@ -2,6 +2,7 @@ namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
 open System
 open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Json
 open Microsoft.AspNetCore.Server.Kestrel.Core
 open Microsoft.Extensions.Configuration
@@ -29,10 +30,12 @@ type Startup private () =
             log.LogError(EventId(), ex, "An unhandled exception has occurred while executing the request.")
             clearResponse >=> setStatusCode 500
 
-        app.UseGraphQLPlayground("/playground") |> ignore
-        app.UseGraphQLVoyager("/voyager") |> ignore
+        if env.IsDevelopment() then
+            app.UseGraphQLPlayground("/playground") |> ignore
+            app.UseGraphQLVoyager("/voyager") |> ignore
+
         app.UseRouting() |> ignore
-        app.UseEndpoints(fun endpoints -> endpoints.MapBananaCakePop(new Microsoft.AspNetCore.Http.PathString("/cakePop")) |> ignore) |> ignore
+        app.UseEndpoints(fun endpoints -> endpoints.MapBananaCakePop(new PathString("/cakePop")) |> ignore) |> ignore
 
         app
             .UseGiraffeErrorHandler(errorHandler)
