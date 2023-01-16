@@ -33,9 +33,8 @@ type Startup private () =
         if env.IsDevelopment() then
             app.UseGraphQLPlayground("/playground") |> ignore
             app.UseGraphQLVoyager("/voyager") |> ignore
-
-        app.UseRouting() |> ignore
-        app.UseEndpoints(fun endpoints -> endpoints.MapBananaCakePop(new PathString("/cakePop")) |> ignore) |> ignore
+            app.UseRouting() |> ignore
+            app.UseEndpoints(fun endpoints -> endpoints.MapBananaCakePop(new PathString("/cakePop")) |> ignore) |> ignore
 
         app
             .UseGiraffeErrorHandler(errorHandler)
