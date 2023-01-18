@@ -22,6 +22,11 @@ type private GQLRequestContent =
       OperationName : Skippable<string>
       Variables : Skippable<ImmutableDictionary<string, JsonElement>> }
 
+[<Struct>]
+type private OperationType =
+    | IntrospectionQuery of introspection: string voption
+    | OperationQuery of operation: GQLRequestContent
+
 module HttpHandlers =
 
     let rec private moduleType = getModuleType <@ moduleType @>
@@ -29,7 +34,7 @@ module HttpHandlers =
     let ofIResult ctx (res: IResult) : HttpFuncResult = task {
             do! res.ExecuteAsync(ctx)
             return Some ctx
-        }
+    }
 
     let ofTaskIResult ctx (taskRes: Task<IResult>) : HttpFuncResult = task {
         let! res = taskRes
@@ -45,13 +50,16 @@ module HttpHandlers =
         task {
             let logger = ctx.RequestServices.CreateLogger moduleType
             let jsonSerializerOptions = ctx.RequestServices.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions
+            let request = ctx.Request
 
+            let isGet = request.Method = HttpMethods.Get
             // TODO: validate the result
+            /// Resolve response type and wrap it into an appropriate object
             let toResponse { DocumentId = documentId; Content = content; Metadata = metadata } =
                 match content with
                 | Direct (data, errs) ->
                     logger.LogInformation($"Produced direct GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}", documentId, metadata)
-                    if not <| logger.IsEnabled LogLevel.Trace then
+                    if logger.IsEnabled LogLevel.Trace then
                         logger.LogTrace($"GraphQL response data:{Environment.NewLine}:{{data}}", JsonSerializer.Serialize(data, jsonSerializerOptions))
                     { DocumentId = documentId
                       Data = data
@@ -101,50 +109,68 @@ module HttpHandlers =
 
             let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")
 
-            let request = ctx.Request
-
-            let hasData () = task {
-            if request.Body.CanSeek then
-                return (request.Body.Length > 0L)
-            else
-                request.EnableBuffering()
-                let body = request.Body
-                let buffer = Array.zeroCreate 1
-                let! bytesRead = body.ReadAsync(buffer, 0, 1)
-                body.Seek(0, SeekOrigin.Begin) |> ignore
-                return (bytesRead > 0)
+            /// Check if the request contains body or not
+            let checkIfHasBody () = task {
+                match request.Body.CanSeek with
+                | true -> return (request.Body.Length > 0L)
+                | false ->
+                    request.EnableBuffering()
+                    let body = request.Body
+                    let buffer = Array.zeroCreate 1
+                    let! bytesRead = body.ReadAsync(buffer, 0, 1)
+                    body.Seek(0, SeekOrigin.Begin) |> ignore
+                    return bytesRead > 0
             }
-            if (request.Method = HttpMethods.Get)
-            then
-                logger.LogInformation("Executing GraphQL introspection query")
-                let! result = Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
-                let response = result |> toResponse
-                return Results.Ok response
-            else
-            let! hd = hasData()
-            if (not hd)
-            then
-                logger.LogInformation("Executing GraphQL introspection query")
-                let! result = Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
-                let response = result |> toResponse
-                return Results.Ok response
-            else
-            
-            let! request = ctx.BindJsonAsync<GQLRequestContent>()
-            let query = request.Query
 
-            logger.LogTrace($"Executing GraphQL query:{Environment.NewLine}{{query}}", query)
-            let operationName = request.OperationName |> Skippable.toOption
-            operationName |> Option.iter (fun on -> logger.LogTrace("GraphQL operation name: '{operationName}'", on))
-            let variables = request.Variables |> Skippable.toOption
-            variables |> Option.iter (fun v -> logger.LogTrace($"GraphQL variables:{Environment.NewLine}{{variables}}", v))
-            
-            let root = { RequestId = System.Guid.NewGuid().ToString () }
-            let query = removeWhitespacesAndLineBreaks query
-            let! result = Schema.executor.AsyncExecute (query, root, ?variables = variables, ?operationName = operationName)
-            let response = result |> toResponse
-            return Results.Ok response
-        }
-        |> ofTaskIResult ctx
+            /// Check if the query is an introspection query
+            let checkIntrospectionQuery () = task {
+                if isGet then return IntrospectionQuery ValueNone
+                else
+                    let! hasBody = checkIfHasBody()
+                    if not hasBody then return IntrospectionQuery ValueNone
+                    else
+                        let! request = ctx.BindJsonAsync<GQLRequestContent>()
+                        if Introspection.IntrospectionQuery.Contains request.Query
+                        then return ValueSome request.Query |> IntrospectionQuery
+                        else return OperationQuery request
+            }
+
+            /// Execute default or custom introspection query
+            let executeIntrospectionQuery (query: string voption) = task {
+                let! result =
+                    match query with
+                    | ValueNone ->
+                        logger.LogInformation("Executing default GraphQL introspection query")
+                        Schema.executor.AsyncExecute(Introspection.IntrospectionQuery)
+                    | ValueSome query ->
+                        logger.LogInformation($"Executing GraphQL introspection query:{Environment.NewLine}{query}", query)
+                        Schema.executor.AsyncExecute query
+                let response = result |> toResponse
+                return Results.Ok response
+            }
+
+            /// Execute the operation for given request
+            let executeOperation request = task {
+                // let! request = ctx.BindJsonAsync<GQLRequestContent>()
+                let query = request.Query
+
+                logger.LogTrace($"Executing GraphQL query:{Environment.NewLine}{query}", query)
+                let operationName = request.OperationName |> Skippable.toOption
+                operationName |> Option.iter (fun on -> logger.LogTrace($"GraphQL operation name: '{operationName}'", on))
+
+                let variables = request.Variables |> Skippable.toOption
+                variables |> Option.iter (fun vars -> logger.LogTrace($"GraphQL variables:{Environment.NewLine}{variables}", variables))
+
+                let root = { RequestId = System.Guid.NewGuid() |> string }
+                let query = removeWhitespacesAndLineBreaks query
+                let! result = Schema.executor.AsyncExecute (query, root, ?variables = variables, ?operationName = operationName)
+                let response = result |> toResponse
+                return Results.Ok response
+            }
+
+            match! checkIntrospectionQuery() with
+            | IntrospectionQuery query -> return! executeIntrospectionQuery query
+            | OperationQuery gqlRequestContent -> return! executeOperation gqlRequestContent
+        } |> ofTaskIResult ctx
 
     let webApp : HttpHandler = setCorsHeaders >=> choose [ POST; GET ] >=> graphQL
