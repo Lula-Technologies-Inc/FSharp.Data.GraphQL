@@ -16,8 +16,9 @@ open System.Text.Json
 
 type Output = IDictionary<string, obj>
 
-let (|Direct|Deferred|Stream|) (response : GQLExecutionResult) =
+let (|RequestError|Direct|Deferred|Stream|) (response : GQLExecutionResult) =
     match response.Content with
+    | RequestError errs -> RequestError errs
     | Direct (data, errors) -> Direct (data, errors)
     | Deferred (data, errors, deferred) -> Deferred (data, errors, deferred)
     | Stream data -> Stream data

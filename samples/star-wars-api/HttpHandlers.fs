@@ -20,17 +20,13 @@ type private GQLRequestContent =
 
 module HttpHandlers =
 
-    let ofIResult ctx (res: IResult) : HttpFuncResult = task {
-            do! res.ExecuteAsync(ctx)
-            return Some ctx
-        }
-
     let ofTaskIResult ctx (taskRes: Task<IResult>) : HttpFuncResult = task {
         let! res = taskRes
         do! res.ExecuteAsync(ctx)
         return Some ctx
     }
 
+    /// Set CORS to allow external servers (React samples) to call this API
     let setCorsHeaders : HttpHandler =
         setHttpHeader "Access-Control-Allow-Origin" "*"
         >=> setHttpHeader "Access-Control-Allow-Headers" "content-type"
@@ -41,22 +37,16 @@ module HttpHandlers =
             // TODO: validate the result
             let toResponse documentId =
                 function
-                | Direct   (data, errs) ->
-                    { DocumentId = documentId
-                      Data = data
-                      Errors = errs }
+                | RequestError errs -> GQLResponse.RequestError (documentId, errs)
+                | Direct   (data, errs) -> GQLResponse.Direct (documentId, data, errs)
                 | Deferred (data, errs, deferred) ->
                     // TODO: Print to logger
                     deferred |> Observable.add (fun d -> printfn "Deferred: %s" (JsonSerializer.Serialize(d, Json.serializerOptions)))
-                    { DocumentId = documentId
-                      Data = data
-                      Errors = errs }
-                | Stream data ->
+                    GQLResponse.Direct (documentId, data, errs)
+                | Stream stream ->
                     // TODO: Print to logger
-                    data |> Observable.add (fun d -> printfn "Subscription data: %s" (JsonSerializer.Serialize(d, Json.serializerOptions)))
-                    { DocumentId = documentId
-                      Data = null
-                      Errors = [] }
+                    stream |> Observable.add (fun d -> printfn "Subscription data: %s" (JsonSerializer.Serialize(d, Json.serializerOptions)))
+                    GQLResponse.Stream documentId
 
             let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")
 

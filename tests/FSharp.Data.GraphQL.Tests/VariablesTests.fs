@@ -203,7 +203,7 @@ let ``Execute handles variables and errors on null for nested non-nulls`` () =
     let params' = paramsWithValueInput testInputObject
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$input' of type 'TestInputObject': in field 'c': expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -217,7 +217,7 @@ let ``Execute handles variables and errors on incorrect type`` () =
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     let errMsg = $"Variable '$input' of type 'TestInputObject': expected to be '%O{JsonValueKind.Object}' but got '%O{JsonValueKind.String}'."
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError errMsg errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -230,7 +230,7 @@ let ``Execute handles variables and errors on omission of nested non-nulls`` () 
     let params' = paramsWithValueInput testInputObject
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         List.length errors |> equals 1
         hasError "Variable '$input' of type 'TestInputObject': in field 'c': expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
@@ -327,7 +327,7 @@ let ``Execute handles non-nullable scalars and does not allow non-nullable input
     let params' = paramsWithValueInput testInputValue
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$value': expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -447,7 +447,7 @@ let ``Execute handles list inputs and nullability and does not allow non-null li
     let params' = paramsWithValueInput testInputList
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$input': expected value of type '[String]!', but no value was found." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -520,7 +520,7 @@ let ``Execute handles list inputs and nullability and does not allow lists of no
     let params' = paramsWithValueInput testInputList
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$input': list element expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -533,7 +533,7 @@ let ``Execute handles list inputs and nullability and does not allow non-null li
     let params' = paramsWithValueInput testInputList
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$input': expected value of type '[String!]!', but no value was found." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -561,7 +561,7 @@ let ``Execute handles list inputs and nullability and does not allow non-null li
     let params' = paramsWithValueInput testInputList
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$input': list element expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
 

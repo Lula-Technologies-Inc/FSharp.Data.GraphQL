@@ -176,11 +176,8 @@ let rec private coerceVariableValue isNullable typedef (vardef : VarDef) (input 
     | Scalar scalardef ->
         match scalardef.CoerceInput (Variable input) with
         | None when isNullable -> null
-        | None ->
-            raise (
-                GraphQLException
-                <| $"%s{errMsg}expected value of type '%s{scalardef.Name}' but got 'None'."
-            )
+        // TODO: Capture position in the JSON document
+        | None -> raise <| GraphQLException $"%s{errMsg}expected value of type '%s{scalardef.Name}' but got 'None'."
         | Some res -> res
     | Nullable (InputObject innerdef) ->
         coerceVariableValue true (innerdef :> InputDef) vardef input errMsg

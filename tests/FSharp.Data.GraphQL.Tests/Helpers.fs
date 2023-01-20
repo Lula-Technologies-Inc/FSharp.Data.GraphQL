@@ -69,6 +69,11 @@ let ensureDirect (result : GQLExecutionResult) (onDirect : Output -> GQLProblemD
     | Direct(data, errors) -> onDirect data errors
     | _ -> fail <| sprintf "Expected Direct GQLResponse but received '%O'" result
 
+let ensureRequestError (result : GQLExecutionResult) (onRequestError : GQLProblemDetails list -> unit) : unit =
+    match result.Content with
+    | RequestError errors -> onRequestError errors
+    | _ -> fail <| sprintf "Expected RequestError GQLResponse but received '%O'" result
+
 open FSharp.Data.GraphQL.Parser
 
 let asts query =

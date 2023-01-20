@@ -190,10 +190,9 @@ let ``Simple query: Should not pass when above threshold``() =
         }"""
     let result = execute query
     match result with
-    | Direct (data, errors) ->
+    | RequestError errors ->
         errors |> equals expectedErrors
-        data |> isNameValueDict |> empty
-    | _ -> fail "Expected Direct GQLResponse"
+    | _ -> fail "Expected RequestError GQLResponse"
     result.Metadata.TryFind<float>("queryWeightThreshold") |> equals (Some 2.0)
     result.Metadata.TryFind<float>("queryWeight") |> equals (Some 3.0)
 
@@ -365,9 +364,8 @@ let ``Deferred and Streamed queries : Should not pass when above threshold``() =
     asts query
     |> Seq.map execute
     |> Seq.iter (fun result ->
-        ensureDirect result <| fun data errors ->
+        ensureRequestError result <| fun errors ->
             errors |> equals expectedErrors
-            data |> isNameValueDict |> empty
         result.Metadata.TryFind<float>("queryWeightThreshold") |> equals (Some 2.0)
         result.Metadata.TryFind<float>("queryWeight") |> equals (Some 3.0))
 
@@ -456,9 +454,8 @@ let ``Inline fragment query : Should not pass when above threshold``() =
                 }
         }"""
     let result = execute query
-    ensureDirect result <| fun data errors ->
+    ensureRequestError result <| fun errors ->
         errors |> equals expectedErrors
-        data |> isNameValueDict |> empty
     result.Metadata.TryFind<float>("queryWeightThreshold") |> equals (Some 2.0)
     result.Metadata.TryFind<float>("queryWeight") |> equals (Some 3.0)
 
