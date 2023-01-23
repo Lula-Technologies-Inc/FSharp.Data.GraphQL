@@ -114,6 +114,8 @@ module HttpHandlers =
                 match request.Body.CanSeek with
                 | true -> return (request.Body.Length > 0L)
                 | false ->
+                    // EnableBuffering allows us to read the Body even if it's been read already somewhere else.
+                    // See https://devblogs.microsoft.com/dotnet/re-reading-asp-net-core-request-bodies-with-enablebuffering/
                     request.EnableBuffering()
                     let body = request.Body
                     let buffer = Array.zeroCreate 1
