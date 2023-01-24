@@ -1,7 +1,8 @@
-﻿namespace FSharp.Data.GraphQL.Samples.StarWarsApi
+namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
+open FSharp.Data.GraphQL.Server.Relay
 open FSharp.Data.GraphQL.Server.Middleware
 
 #nowarn "40"
@@ -41,6 +42,7 @@ type Character =
     | Droid of Droid
 
 module Schema =
+
     let humans =
         [ { Id = "1000"
             Name = Some "Luke Skywalker"
@@ -79,6 +81,15 @@ module Schema =
             Friends = [ "1000"; "1002"; "1003" ]
             AppearsIn = [ Episode.NewHope; Episode.Empire; Episode.Jedi ]
             PrimaryFunction = Some "Astromech" } ]
+
+    let characterMap =
+        seq {
+            for h in humans do
+                yield h.Id, Human h
+            for d in droids do
+                yield d.Id, Droid d
+        }
+        |> Map.ofSeq
 
     let planets =
         [ { Id = "1"
@@ -142,8 +153,31 @@ module Schema =
             [
                 Define.Field("id", StringType, "The id of the human.", fun _ (h : Human) -> h.Id)
                 Define.Field("name", Nullable StringType, "The name of the human.", fun _ (h : Human) -> h.Name)
-                Define.Field("friends", ListOf (Nullable CharacterType), "The friends of the human, or an empty list if they have none.",
-                    fun _ (h : Human) -> h.Friends |> List.map getCharacter |> List.toSeq).WithQueryWeight(0.5)
+                Define.Field("friends",
+                    ConnectionOf CharacterType,
+                    "The friends of the human, or an empty list if they have none.",
+                    Connection.allArgs,
+                    fun ctx human ->
+                        let totalCount = human.Friends.Length
+                        let friends, hasNextPage =
+                            match ctx with
+                            | SliceInfo(Forward(n, after)) ->
+                                match after with
+                                | Some (GlobalId("Friend", id)) ->
+                                    let i = human.Friends |> List.indexed |> List.pick (fun (i, e) -> if e = id then Some i else None)
+                                    human.Friends |> List.skip (i+1) |> List.take n,
+                                    i+1+n < totalCount
+                                | None ->
+                                    human.Friends |> List.take n,
+                                    n < totalCount
+                                | _ -> failwithf "Cursor %A is not a Friend's global id" after
+                            | _ -> human.Friends, false
+                        let edges = friends |> Seq.map (fun b -> { Cursor = toGlobalId "Friend" (string b); Node = characterMap[b] }) |> Seq.toList
+                        let headCursor = edges |> List.tryHead |> Option.map (fun edge -> edge.Cursor)
+                        let pi = { HasNextPage = hasNextPage; EndCursor = headCursor; StartCursor = None; HasPreviousPage = false }
+                        let con = { TotalCount = Some totalCount; PageInfo = pi; Edges = edges }
+                        con
+                    )
                 Define.Field("appearsIn", ListOf EpisodeType, "Which movies they appear in.", fun _ (h : Human) -> h.AppearsIn)
                 Define.Field("homePlanet", Nullable StringType, "The home planet of the human, or null if unknown.", fun _ h -> h.HomePlanet)
             ])
@@ -227,7 +261,7 @@ module Schema =
 
     let schema : ISchema<Root> = upcast Schema(Query, Mutation, Subscription, schemaConfig)
 
-    let middlewares = 
+    let middlewares =
         [ Define.QueryWeightMiddleware(2.0, true)
           Define.ObjectListFilterMiddleware<Human, Character option>(true)
           Define.ObjectListFilterMiddleware<Droid, Character option>(true)
