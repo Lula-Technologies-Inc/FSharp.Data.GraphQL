@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project>
   <PropertyGroup>
     <SystemVersion>7.0.*</SystemVersion>
     <MicrosoftExtensionsVersion>7.0.*</MicrosoftExtensionsVersion>
@@ -46,6 +46,7 @@
     <PackageReference Update="Giraffe" Version="6.*" />
     <PackageReference Update="GraphQL.Server.Ui.Playground" Version="7.1.*"  />
     <PackageReference Update="GraphQL.Server.Ui.Voyager" Version="7.1.*"  />
+    <PackageReference Update="HotChocolate.AspNetCore" Version="12.16.*" />
     <PackageReference Update="Iced" Version="1.17.*" />
     <PackageReference Update="Microsoft.CodeCoverage" Version="17.3.*" />
     <PackageReference Update="Microsoft.Diagnostics.NETCore.Client" Version="0.2.*" />

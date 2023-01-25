@@ -6,6 +6,7 @@ module FSharp.Data.GraphQL.Tests.VariablesTests
 open System.Text.Json
 open System.Collections.Immutable
 open System.Text.Json
+open System.Text.Json
 
 #nowarn "25"
 
@@ -20,8 +21,14 @@ open FSharp.Data.GraphQL.Execution
 let TestComplexScalar =
   Define.Scalar(
     name = "ComplexScalar",
-    coerceInput = (fun (StringValue value) -> if value = "SerializedValue" then Some "DeserializedValue" else None),
-    coerceValue = (fun value -> if value = upcast "DeserializedValue" then Some "SerializedValue" else None))
+    coerceInput =
+        (fun i ->
+         let value =
+             match i with
+             | Variable e -> e.GetString()
+             | InlineConstant (StringValue s) -> s
+         if value = "SerializedValue" then Some "DeserializedValue" else None),
+    coerceOutput = (fun value -> if value = upcast "DeserializedValue" then Some "SerializedValue" else None))
 
 type TestInput = {
     a: string option
@@ -38,11 +45,11 @@ let TestInputObject =
   Define.InputObject<TestInput>(
     name = "TestInputObject",
     fields = [
-        Define.Input("a", Nullable String)
-        Define.Input("b", Nullable( ListOf (Nullable String)) )
-        Define.Input("c", String)
+        Define.Input("a", Nullable StringType)
+        Define.Input("b", Nullable( ListOf (Nullable StringType)) )
+        Define.Input("c", StringType)
         Define.Input("d", Nullable TestComplexScalar)
-        Define.Input("e", Nullable( InputArrayOf (Nullable String)) )
+        Define.Input("e", Nullable( InputArrayOf (Nullable StringType)) )
     ])
 
 type TestNestedInput = {
@@ -55,7 +62,7 @@ let TestNestedInputObject =
     name = "TestNestedInputObject",
     fields = [
         Define.Input("na", Nullable TestInputObject)
-        Define.Input("nb", String)
+        Define.Input("nb", StringType)
     ])
 
 type TestRecusiveInput = {
@@ -70,7 +77,7 @@ let rec TestRecursiveInputObject =
     fieldsFn =
         fun () -> [
             Define.Input("ra", Nullable TestRecursiveInputObject)
-            Define.Input("rb", String)]
+            Define.Input("rb", StringType)]
     )
 
 let stringifyArg name (ctx: ResolveFieldContext) () =
@@ -94,18 +101,18 @@ let TestType =
   Define.Object<unit>(
     name = "TestType",
     fields = [
-        Define.Field("fieldWithObjectInput", String, "", [ Define.Input("input", Nullable TestInputObject) ], stringifyInput)
-        Define.Field("fieldWithNullableStringInput", String, "", [ Define.Input("input", Nullable String) ], stringifyInput)
-        Define.Field("fieldWithNonNullableStringInput", String, "", [ Define.Input("input", String) ], stringifyInput)
-        Define.Field("fieldWithDefaultArgumentValue", String, "", [ Define.Input("input", Nullable String, Some "hello world") ], stringifyInput)
-        Define.Field("fieldWithNestedInputObject", String, "", [ Define.Input("input", TestNestedInputObject, { na = None; nb = "hello world"}) ], stringifyInput)
-        Define.Field("fieldWithRecursiveInputObject", String, "", [ Define.Input("input", TestRecursiveInputObject, { ra = None; rb = "hello world"}) ], stringifyInput)
-        Define.Field("fieldWithEnumInput", String, "", [ Define.Input("input", EnumTestType) ], stringifyInput)
-        Define.Field("fieldWithNullableEnumInput", String, "", [ Define.Input("input", Nullable EnumTestType) ], stringifyInput)
-        Define.Field("list", String, "", [ Define.Input("input", Nullable(ListOf (Nullable String))) ], stringifyInput)
-        Define.Field("nnList", String, "", [ Define.Input("input", ListOf (Nullable String)) ], stringifyInput)
-        Define.Field("listNN", String, "", [ Define.Input("input", Nullable (ListOf String)) ], stringifyInput)
-        Define.Field("nnListNN", String, "", [ Define.Input("input", ListOf String) ], stringifyInput)
+        Define.Field("fieldWithObjectInput", StringType, "", [ Define.Input("input", Nullable TestInputObject) ], stringifyInput)
+        Define.Field("fieldWithNullableStringInput", StringType, "", [ Define.Input("input", Nullable StringType) ], stringifyInput)
+        Define.Field("fieldWithNonNullableStringInput", StringType, "", [ Define.Input("input", StringType) ], stringifyInput)
+        Define.Field("fieldWithDefaultArgumentValue", StringType, "", [ Define.Input("input", Nullable StringType, Some "hello world") ], stringifyInput)
+        Define.Field("fieldWithNestedInputObject", StringType, "", [ Define.Input("input", TestNestedInputObject, { na = None; nb = "hello world"}) ], stringifyInput)
+        Define.Field("fieldWithRecursiveInputObject", StringType, "", [ Define.Input("input", TestRecursiveInputObject, { ra = None; rb = "hello world"}) ], stringifyInput)
+        Define.Field("fieldWithEnumInput", StringType, "", [ Define.Input("input", EnumTestType) ], stringifyInput)
+        Define.Field("fieldWithNullableEnumInput", StringType, "", [ Define.Input("input", Nullable EnumTestType) ], stringifyInput)
+        Define.Field("list", StringType, "", [ Define.Input("input", Nullable(ListOf (Nullable StringType))) ], stringifyInput)
+        Define.Field("nnList", StringType, "", [ Define.Input("input", ListOf (Nullable StringType)) ], stringifyInput)
+        Define.Field("listNN", StringType, "", [ Define.Input("input", Nullable (ListOf StringType)) ], stringifyInput)
+        Define.Field("nnListNN", StringType, "", [ Define.Input("input", ListOf StringType) ], stringifyInput)
     ])
 
 let schema = Schema(TestType)
@@ -196,8 +203,8 @@ let ``Execute handles variables and errors on null for nested non-nulls`` () =
     let params' = paramsWithValueInput testInputObject
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
-        hasError "Variable '$input': in input object 'TestInputObject': in field 'c': expected value of type 'String' but got 'None'." errors
+    | RequestError errors ->
+        hasError "Variable '$input' of type 'TestInputObject': in field 'c': expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
 
 [<Fact>]
@@ -208,9 +215,9 @@ let ``Execute handles variables and errors on incorrect type`` () =
     let testInputObject = "\"foo bar\""
     let params' = paramsWithValueInput testInputObject
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
-    let errMsg = $"Variable '$input': expected to be '%O{JsonValueKind.Object}' but got '%O{JsonValueKind.String}'."
+    let errMsg = $"Variable '$input' of type 'TestInputObject': expected to be '%O{JsonValueKind.Object}' but got '%O{JsonValueKind.String}'."
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError errMsg errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -223,9 +230,9 @@ let ``Execute handles variables and errors on omission of nested non-nulls`` () 
     let params' = paramsWithValueInput testInputObject
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         List.length errors |> equals 1
-        hasError "Variable '$input': in input object 'TestInputObject': in field 'c': expected value of type 'String' but got 'None'." errors
+        hasError "Variable '$input' of type 'TestInputObject': in field 'c': expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
 
 [<Fact>]
@@ -320,7 +327,7 @@ let ``Execute handles non-nullable scalars and does not allow non-nullable input
     let params' = paramsWithValueInput testInputValue
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$value': expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -440,7 +447,7 @@ let ``Execute handles list inputs and nullability and does not allow non-null li
     let params' = paramsWithValueInput testInputList
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$input': expected value of type '[String]!', but no value was found." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -513,7 +520,7 @@ let ``Execute handles list inputs and nullability and does not allow lists of no
     let params' = paramsWithValueInput testInputList
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$input': list element expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -526,7 +533,7 @@ let ``Execute handles list inputs and nullability and does not allow non-null li
     let params' = paramsWithValueInput testInputList
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$input': expected value of type '[String!]!', but no value was found." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -554,7 +561,7 @@ let ``Execute handles list inputs and nullability and does not allow non-null li
     let params' = paramsWithValueInput testInputList
     let actual = sync <| Executor(schema).AsyncExecute(ast, variables = params')
     match actual with
-    | Direct(data, errors) ->
+    | RequestError errors ->
         hasError "Variable '$input': list element expected value of type 'String' but got 'None'." errors
     | _ -> fail "Expected Direct GQResponse"
 
@@ -579,7 +586,7 @@ let ``Execute handles list inputs and nullability and does not allow unknown typ
         }"""
     // as that kind of an error inside of a query is guaranteed to fail in every call, we're gonna to fail noisy here
     let e = throws<MalformedQueryException> (fun () ->
-        let testInputValue = "whoknows"
+        let testInputValue = "\"whoknows\""
         let params' = paramsWithValueInput testInputValue
         Executor(schema).AsyncExecute(ast, variables = params')
         |> sync

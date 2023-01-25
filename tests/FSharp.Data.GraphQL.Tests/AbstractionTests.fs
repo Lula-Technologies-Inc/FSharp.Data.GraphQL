@@ -9,7 +9,7 @@ open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Parser
 open FSharp.Data.GraphQL.Execution
-open FSharp.Data.GraphQL.Relay
+open FSharp.Data.GraphQL.Server.Relay
 
 type IPet =
     interface
@@ -38,15 +38,15 @@ let resolvePet = function
 
 [<Fact>]
 let ``Execute handles execution of abstract types: isTypeOf is used to resolve runtime type for Interface`` () =
-    let PetType = Define.Interface("Pet", fun () -> [ Define.Field("name", String) ])
+    let PetType = Define.Interface("Pet", fun () -> [ Define.Field("name", StringType) ])
     let DogType =
       Define.Object<Dog>(
         name = "Dog",
         isTypeOf = is<Dog>,
         interfaces = [ PetType ],
         fields = [
-            Define.Field("name", String, resolve = fun _ d -> d.Name)
-            Define.Field("woofs", Boolean, fun _ d -> d.Woofs)
+            Define.Field("name", StringType, resolve = fun _ d -> d.Name)
+            Define.Field("woofs", BooleanType, fun _ d -> d.Woofs)
         ])
     let CatType =
       Define.Object<Cat>(
@@ -54,8 +54,8 @@ let ``Execute handles execution of abstract types: isTypeOf is used to resolve r
         isTypeOf = is<Cat>,
         interfaces = [ PetType ],
         fields = [
-            Define.Field("name", String, resolve = fun _ c -> c.Name)
-            Define.Field("meows", Boolean, fun _ c -> c.Meows)
+            Define.Field("name", StringType, resolve = fun _ c -> c.Name)
+            Define.Field("meows", BooleanType, fun _ c -> c.Meows)
         ])
     let schema =
       Schema(
@@ -99,16 +99,16 @@ let ``Execute handles execution of abstract types: isTypeOf is used to resolve r
         name = "Dog",
         isTypeOf = is<Dog>,
         fields = [
-            Define.AutoField("name", String)
-            Define.AutoField("woofs", Boolean)
+            Define.AutoField("name", StringType)
+            Define.AutoField("woofs", BooleanType)
         ])
     let CatType =
       Define.Object<Cat>(
         name = "Cat",
         isTypeOf = is<Cat>,
         fields = [
-            Define.AutoField("name", String)
-            Define.AutoField("meows", Boolean)
+            Define.AutoField("name", StringType)
+            Define.AutoField("meows", BooleanType)
         ])
     let PetType = Define.Union("Pet", [ DogType; CatType ], resolvePet)
     let schema =
@@ -176,7 +176,7 @@ let ``inner types `` () =
             interfaces = [ Node ],
             fields =
                 [ Define.GlobalIdField(fun _ w -> w.Id)
-                  Define.Field("name", String, fun _ (w : Widget) -> w.Name) ]
+                  Define.Field("name", StringType, fun _ (w : Widget) -> w.Name) ]
         )
 
     and WidgetsField name (getUser: ResolveFieldContext -> 'a -> User) =
@@ -194,7 +194,7 @@ let ``inner types `` () =
             interfaces = [ Node ],
             fields =
                 [ Define.GlobalIdField(fun _ w -> w.Id)
-                  Define.Field("name", String, fun _ w -> w.Name)
+                  Define.Field("name", StringType, fun _ w -> w.Name)
                   WidgetsField "widgets" (fun _ user -> user) ]
         )
 

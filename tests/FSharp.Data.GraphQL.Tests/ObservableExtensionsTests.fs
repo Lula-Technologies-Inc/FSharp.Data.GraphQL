@@ -144,7 +144,7 @@ let ``choose should cal OnComplete`` () =
     sub.Received |> seqEquals [ 2; 4 ]
 
 [<Fact>]
-let ``concat should call OnComplete and return items in expected order`` () =
+let ``concatInner should call OnComplete and return items in expected order`` () =
     let source1 = seq {
         yield delay 500 2
         yield delay 100 1
@@ -162,7 +162,7 @@ let ``concat should call OnComplete and return items in expected order`` () =
     sub.Received |> seqEquals [ 1; 3; 2; 5; 4 ]
 
 [<Fact>]
-let ``concat2 should call OnComplete and return items in expected order`` () =
+let ``concat should call OnComplete and return items in expected order`` () =
     let source1 = seq {
         yield delay 500 2
         yield delay 100 1
@@ -171,14 +171,14 @@ let ``concat2 should call OnComplete and return items in expected order`` () =
         yield delay 400 4
         yield delay 300 5 }
     let obs =
-        Observable.ofAsyncSeq source2
-        |> Observable.concat (Observable.ofAsyncSeq source1)
+        Observable.ofAsyncSeq source1
+        |> Observable.concat (Observable.ofAsyncSeq source2)
     use sub = Observer.create obs
     sub.WaitCompleted(timeout = ms 10)
     sub.Received |> seqEquals [ 1; 3; 2; 5; 4 ]
 
 [<Fact>]
-let ``merge should call OnComplete and return items in expected order`` () =
+let ``mergeInner should call OnComplete and return items in expected order`` () =
     let source1 = seq {
         yield delay 500 2
         yield delay 100 1
@@ -196,7 +196,7 @@ let ``merge should call OnComplete and return items in expected order`` () =
     sub.Received |> seqEquals [ 1; 3; 5; 4; 2 ]
 
 [<Fact>]
-let ``merge2 should call OnComplete and return items in expected order`` () =
+let ``merge should call OnComplete and return items in expected order`` () =
     let source1 = seq {
         yield delay 500 2
         yield delay 100 1
@@ -205,8 +205,8 @@ let ``merge2 should call OnComplete and return items in expected order`` () =
         yield delay 400 4
         yield delay 300 5 }
     let obs =
-        Observable.ofAsyncSeq source2
-        |> Observable.merge (Observable.ofAsyncSeq source1)
+        Observable.ofAsyncSeq source1
+        |> Observable.merge (Observable.ofAsyncSeq source2)
     use sub = Observer.create obs
     sub.WaitCompleted(timeout = ms 10)
     sub.Received |> seqEquals [ 1; 3; 5; 4; 2 ]

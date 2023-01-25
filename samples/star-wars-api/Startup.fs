@@ -2,6 +2,7 @@ namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
 open System
 open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Json
 open Microsoft.AspNetCore.Server.Kestrel.Core
 open Microsoft.Extensions.Configuration
@@ -32,6 +33,8 @@ type Startup private () =
         if env.IsDevelopment() then
             app.UseGraphQLPlayground("/playground") |> ignore
             app.UseGraphQLVoyager("/voyager") |> ignore
+            app.UseRouting() |> ignore
+            app.UseEndpoints(fun endpoints -> endpoints.MapBananaCakePop(PathString "/cakePop") |> ignore) |> ignore
 
         app
             .UseGiraffeErrorHandler(errorHandler)

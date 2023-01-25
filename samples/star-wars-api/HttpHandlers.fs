@@ -31,17 +31,13 @@ module HttpHandlers =
 
     let rec private moduleType = getModuleType <@ moduleType @>
 
-    let ofIResult ctx (res: IResult) : HttpFuncResult = task {
-            do! res.ExecuteAsync(ctx)
-            return Some ctx
-    }
-
     let ofTaskIResult ctx (taskRes: Task<IResult>) : HttpFuncResult = task {
         let! res = taskRes
         do! res.ExecuteAsync(ctx)
         return Some ctx
     }
 
+    /// Set CORS to allow external servers (React samples) to call this API
     let setCorsHeaders : HttpHandler =
         setHttpHeader "Access-Control-Allow-Origin" "*"
         >=> setHttpHeader "Access-Control-Allow-Headers" "content-type"
@@ -53,6 +49,7 @@ module HttpHandlers =
             let request = ctx.Request
 
             let isGet = request.Method = HttpMethods.Get
+
             // TODO: validate the result
             /// Resolve response type and wrap it into an appropriate object
             let toResponse { DocumentId = documentId; Content = content; Metadata = metadata } =
@@ -61,9 +58,8 @@ module HttpHandlers =
                     logger.LogInformation($"Produced direct GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}", documentId, metadata)
                     if logger.IsEnabled LogLevel.Trace then
                         logger.LogTrace($"GraphQL response data:{Environment.NewLine}:{{data}}", JsonSerializer.Serialize(data, jsonSerializerOptions))
-                    { DocumentId = documentId
-                      Data = data
-                      Errors = errs }
+                    GQLResponse.Direct (documentId, data, errs)
+
                 | Deferred (data, errs, deferred) ->
                     logger.LogInformation($"Produced deferred GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}", documentId, metadata)
                     if logger.IsEnabled LogLevel.Information then
@@ -82,9 +78,9 @@ module HttpHandlers =
                                     if logger.IsEnabled LogLevel.Trace then
                                         logger.LogTrace($"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}", errors, (JsonSerializer.Serialize(data, jsonSerializerOptions)))
                             )
-                    { DocumentId = documentId
-                      Data = data
-                      Errors = errs }
+                    // TODO GBirkel: Should this be "Deferred"?
+                    GQLResponse.Direct (documentId, data, errs)
+
                 | Stream stream ->
                     logger.LogInformation($"Produced stream GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}", documentId, metadata)
                     if logger.IsEnabled LogLevel.Information then
@@ -103,9 +99,10 @@ module HttpHandlers =
                                     if logger.IsEnabled LogLevel.Trace then
                                         logger.LogTrace($"GraphQL subscription errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}", errors, (JsonSerializer.Serialize(data, jsonSerializerOptions)))
                             )
-                    { DocumentId = documentId
-                      Data = null
-                      Errors = [] }
+                    GQLResponse.Stream documentId
+
+                | RequestError errs ->
+                    GQLResponse.RequestError (documentId, errs)
 
             let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")
 
@@ -165,7 +162,8 @@ module HttpHandlers =
 
                 let root = { RequestId = System.Guid.NewGuid() |> string }
                 let query = removeWhitespacesAndLineBreaks query
-                let! result = Schema.executor.AsyncExecute (query, root, ?variables = variables, ?operationName = operationName)
+                let! result =
+                    Schema.executor.AsyncExecute (query, root, ?variables = variables, ?operationName = operationName)
                 let response = result |> toResponse
                 return Results.Ok response
             }

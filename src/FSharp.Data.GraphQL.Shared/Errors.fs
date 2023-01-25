@@ -31,13 +31,13 @@ type GQLProblemDetails = {
     /// An array of fields path segments that that identify the specific field path in a GraphQL query where the resolution problem occurs.
     /// </summary>
     [<JsonPropertyName("path")>]
-    Path: string list voption
+    Path: FieldPath Skippable
 
     /// <summary>
     /// An array of line and columnt pairs that identify the specific positions in a GraphQL query where the problem occurs.
     /// </summary>
     [<JsonPropertyName("locations")>]
-    Locations: GQLProblemLocation list voption
+    Locations: GQLProblemLocation list Skippable
 
     /// <summary>
     /// Gets the <see cref="IDictionary{TKey, TValue}"/> for extension members.
@@ -51,43 +51,43 @@ type GQLProblemDetails = {
     /// In particular, complex types or collection types may not round-trip to the original type when using the built-in JSON or XML formatters.
     /// </remarks>
     [<JsonExtensionData>]
-    Extensions: IReadOnlyDictionary<string, obj> voption
+    Extensions: IReadOnlyDictionary<string, obj> Skippable
 }
 with
     static member Create (message, ?extensions: IReadOnlyDictionary<string, obj>) =
-        { Message = message; Path = ValueNone; Locations = ValueNone;
-          Extensions = extensions |> Option.toObj |> ValueOption.ofObj }
+        { Message = message; Path = Skip; Locations = Skip;
+          Extensions = extensions |> Skippable.ofOption }
 
     static member Create (message, extensions) =
-        { Message = message; Path = ValueNone; Locations = ValueNone;
+        { Message = message; Path = Skip; Locations = Skip;
           Extensions = extensions }
 
     static member Create (message, path, ?extensions: IReadOnlyDictionary<string, obj>) =
-        { Message = message; Path = ValueSome path; Locations = ValueNone;
-          Extensions = extensions |> Option.toObj |> ValueOption.ofObj }
+        { Message = message; Path = Include path; Locations = Skip;
+          Extensions = extensions |> Skippable.ofOption }
 
     static member Create (message, path, extensions) =
-        { Message = message; Path = ValueSome path; Locations = ValueNone;
+        { Message = message; Path = Include path; Locations = Skip;
           Extensions = extensions }
 
     static member Create (message, locations, ?extensions: IReadOnlyDictionary<string, obj>) =
-        { Message = message; Path = ValueNone; Locations = ValueSome locations;
-          Extensions = extensions |> Option.toObj |> ValueOption.ofObj }
+        { Message = message; Path = Skip; Locations = Include locations;
+          Extensions = extensions |> Skippable.ofOption }
 
     static member Create (message, locations, extensions) =
-        { Message = message; Path = ValueNone; Locations = ValueSome locations;
+        { Message = message; Path = Skip; Locations = Include locations;
           Extensions = extensions }
 
     static member OfError (error : IGQLError) =
         let extensions =
             match error with
-            | :? IGQLErrorExtensions as ext -> ext.Extensions
-            | _ -> ValueNone
+            | :? IGQLErrorExtensions as ext -> ext.Extensions |> Skippable.ofValueOption
+            | _ -> Skip
         GQLProblemDetails.Create (error.Message, extensions)
 
-    static member OfFieldError (path: string list) (error : IGQLError) =
+    static member OfFieldError (path: FieldPath) (error : IGQLError) =
         let extensions =
             match error with
-            | :? IGQLErrorExtensions as ext -> ext.Extensions
-            | _ -> ValueNone
+            | :? IGQLErrorExtensions as ext -> ext.Extensions |> Skippable.ofValueOption
+            | _ -> Skip
         GQLProblemDetails.Create (error.Message, path, extensions)

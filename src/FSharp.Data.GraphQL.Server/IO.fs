@@ -2,15 +2,30 @@ namespace FSharp.Data.GraphQL
 
 open System
 open System.Collections.Generic
+open System.Text.Json.Serialization
 open FSharp.Data.GraphQL
+open FSharp.Data.GraphQL.Extensions
 open FSharp.Data.GraphQL.Types
 
 type Output = IDictionary<string, obj>
 
 type GQLResponse =
     { DocumentId: int
-      Data : Output
-      Errors : GQLProblemDetails list }
+      Data : Output Skippable
+      Errors : GQLProblemDetails list Skippable }
+    static member Direct(documentId, data, errors) =
+        { DocumentId = documentId
+          Data = Include data
+          Errors = Skippable.ofList errors }
+    static member Stream(documentId) =
+        { DocumentId = documentId
+          Data = Include null
+          Errors = Skip }
+    static member RequestError(documentId, errors) =
+        { DocumentId = documentId
+          Data = Skip
+          Errors = Include errors }
+
 
 type GQLExecutionResult =
     { DocumentId: int
@@ -28,36 +43,51 @@ type GQLExecutionResult =
         { DocumentId = documentId
           Content = Stream data
           Metadata = meta }
+    static member RequestError(documentId, errors, meta) =
+        { DocumentId = documentId
+          Content = RequestError errors
+          Metadata = meta }
     static member Empty(documentId, meta) =
         GQLExecutionResult.Direct(documentId, Map.empty, [], meta)
+    static member Error(documentId, errors, meta) =
+        GQLExecutionResult.RequestError(documentId, errors, meta)
+    static member Error(documentId, error, meta) =
+        GQLExecutionResult.RequestError(documentId, [ error ], meta)
+    static member Error(documentId, error, meta) =
+        GQLExecutionResult.RequestError(documentId, [ GQLProblemDetails.OfError error ], meta)
     static member Error(documentId, msg, meta) =
-        GQLExecutionResult.Direct(documentId, Map.empty, [ GQLProblemDetails.Create msg ], meta)
+        GQLExecutionResult.RequestError(documentId, [ GQLProblemDetails.Create msg ], meta)
     static member Invalid(documentId, errors, meta) =
-        GQLExecutionResult.Direct(documentId, Map.empty, errors, meta)
-    static member ErrorAsync(documentId, msg, meta) =
+        GQLExecutionResult.RequestError(documentId, errors, meta)
+    static member ErrorAsync(documentId, msg : string, meta) =
         asyncVal.Return (GQLExecutionResult.Error (documentId, msg, meta))
+    static member ErrorAsync(documentId, error : IGQLError, meta) =
+        asyncVal.Return (GQLExecutionResult.Error (documentId, error, meta))
 
 // TODO: Rename to PascalCase
 and GQLResponseContent =
-    | Direct of data : Output * errors: GQLProblemDetails list
-    | Deferred of data : Output * errors : GQLProblemDetails list * defer : IObservable<GQLDeferredResponseContent>
-    | Stream of stream : IObservable<GQLSubscriptionResponseContent>
+    | RequestError of Errors: GQLProblemDetails list
+    | Direct of Data : Output * Errors: GQLProblemDetails list
+    | Deferred of Data : Output * Errors : GQLProblemDetails list * Defer : IObservable<GQLDeferredResponseContent>
+    | Stream of Stream : IObservable<GQLSubscriptionResponseContent>
 
 and GQLDeferredResponseContent =
-    | DeferredResult of data : obj * path : string list
-    | DeferredErrors of data : obj * errors: GQLProblemDetails list * path : string list
+    | DeferredResult of Data : obj * Path : FieldPath
+    | DeferredErrors of Data : obj * Errors: GQLProblemDetails list * Path : FieldPath
 
 and GQLSubscriptionResponseContent =
-    | SubscriptionResult of data : Output
-    | SubscriptionErrors of data : Output * errors: GQLProblemDetails list
+    | SubscriptionResult of Data : Output
+    | SubscriptionErrors of Data : Output * Errors: GQLProblemDetails list
 
 /// Name value lookup used as output to be serialized into JSON.
 /// It has a form of a dictionary with fixed set of keys. Values under keys
 /// can be set, but no new entry can be added or removed, once lookup
 /// has been initialized.
-/// This dicitionay implements structural equality.
+/// This dictionary implements structural equality.
 type NameValueLookup(keyValues: KeyValuePair<string, obj> []) =
+
     let kvals = keyValues |> Array.distinctBy (fun kv -> kv.Key)
+
     let setValue key value =
         let mutable i = 0
         while i < kvals.Length do
@@ -87,8 +117,10 @@ type NameValueLookup(keyValues: KeyValuePair<string, obj> []) =
                     | (BoxedSeq x), (BoxedSeq y) ->
                         if Seq.length x <> Seq.length y then false else Seq.forall2 (=) x y
                     | a1, b1 -> a1 = b1) y.Buffer
+
     let pad (sb: System.Text.StringBuilder) times =
         for _ in 0..times do sb.Append("\t") |> ignore
+
     let rec stringify (sb: System.Text.StringBuilder) deep (o:obj) =
         match o with
         | :? NameValueLookup as lookup ->
@@ -116,30 +148,39 @@ type NameValueLookup(keyValues: KeyValuePair<string, obj> []) =
         ()
     /// Returns raw content of the current lookup.
     member _.Buffer : KeyValuePair<string, obj> [] = kvals
+
     /// Return a number of entries stored in current lookup. It's fixed size.
     member _.Count = kvals.Length
+
     /// Updates an entry's value under given key. It will throw an exception
     /// if provided key cannot be found in provided lookup.
     member _.Update key value = setValue key value
+
     override x.Equals(other) =
         match other with
         | :? NameValueLookup as lookup -> structEq x lookup
         | _ -> false
+
     override _.GetHashCode() =
         let mutable hash = 0
         for kv in kvals do
             hash <- (hash*397) ^^^ (kv.Key.GetHashCode()) ^^^ (if isNull kv.Value then 0 else kv.Value.GetHashCode())
         hash
+
     override x.ToString() =
         let sb =Text.StringBuilder()
         stringify sb 1 x
         sb.ToString()
+
     interface IEquatable<NameValueLookup> with
         member x.Equals(other) = structEq x other
+
     interface System.Collections.IEnumerable with
         member _.GetEnumerator() = (kvals :> System.Collections.IEnumerable).GetEnumerator()
+
     interface IEnumerable<KeyValuePair<string, obj>> with
         member _.GetEnumerator() = (kvals :> IEnumerable<KeyValuePair<string, obj>>).GetEnumerator()
+
     interface IDictionary<string, obj> with
         member _.Add(_, _) = raise (NotSupportedException "NameValueLookup doesn't allow to add/remove entries")
         member _.Add(_) = raise (NotSupportedException "NameValueLookup doesn't allow to add/remove entries")
@@ -164,8 +205,10 @@ type NameValueLookup(keyValues: KeyValuePair<string, obj> []) =
             match kvals |> Array.tryFind (fun kv -> kv.Key = key) with
             | Some kv -> value <- kv.Value; true
             | None -> value <- null; false
+
     new(t: (string * obj) list) =
         NameValueLookup(t |> List.map (fun (k, v) -> KeyValuePair<string,obj>(k, v)) |> List.toArray)
+
     new(t: string []) =
         NameValueLookup(t |> Array.map (fun k -> KeyValuePair<string,obj>(k, null)))
 
