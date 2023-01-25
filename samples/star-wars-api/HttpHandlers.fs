@@ -124,8 +124,8 @@ module HttpHandlers =
                     return bytesRead > 0
             }
 
-            /// Check if the query is an introspection query
-            let checkIntrospectionQuery () = task {
+            let detectIntrospectionQuery () = task {
+                /// Check for the conditions that would make this an introspection query
                 if isGet then return IntrospectionQuery ValueNone
                 else
                     let! hasBody = checkIfHasBody()
@@ -170,7 +170,7 @@ module HttpHandlers =
                 return Results.Ok response
             }
 
-            match! checkIntrospectionQuery() with
+            match! detectIntrospectionQuery() with
             | IntrospectionQuery query -> return! executeIntrospectionQuery query
             | OperationQuery gqlRequestContent -> return! executeOperation gqlRequestContent
         } |> ofTaskIResult ctx
