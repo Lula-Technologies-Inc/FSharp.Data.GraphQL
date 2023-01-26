@@ -285,6 +285,7 @@ module Ast =
         ast.Definitions
         |> List.choose (function | FragmentDefinition x when x.Name.IsSome -> Some x | _ -> None)
 
+    /// Prepare a ValidationContext for the given Document and SchemaInfo to make validation operations easier.
     let internal getValidationContext (schemaInfo : SchemaInfo) (ast : Document) =
         let fragmentDefinitions = getFragmentDefinitions ast
         let fragmentInfos =
@@ -1115,6 +1116,7 @@ module Ast =
           validateAllVariablesUsed
           validateVariableUsagesAllowed ]
 
+    /// Run all available Ast validations against the given Document and IntrospectionSchema
     let validateDocument (schema : IntrospectionSchema) (ast : Document) =
         let schemaInfo = SchemaInfo.FromIntrospectionSchema(schema)
         let context = getValidationContext schemaInfo ast

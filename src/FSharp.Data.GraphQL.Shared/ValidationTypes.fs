@@ -19,6 +19,7 @@ module ValidationResult =
         | _, Success -> res1
         | ValidationError e1, ValidationError e2 -> ValidationError (e1 @ e2)
 
+    /// Call the given sequence of validations, accumulating any errors, and return one ValidationResult.
     let collectResults (f : 'T -> ValidationResult<'Err>) (xs : 'T seq) : ValidationResult<'Err> =
         Seq.fold (fun acc t -> acc @@ (f t)) Success xs
 

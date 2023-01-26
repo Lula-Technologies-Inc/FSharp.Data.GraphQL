@@ -187,6 +187,9 @@ let private getOperation = function
     | OperationDefinition odef -> Some odef
     | _ -> None
 
+
+/// Search through the Definitions in the given Document for an OperationDefinition with the given name.
+/// Or, if there was no name given, and there is only one OperationDefinition in the Document, return that.
 let internal findOperation doc opName =
     match doc.Definitions |> List.choose getOperation, opName with
     | [def], _ -> Some def

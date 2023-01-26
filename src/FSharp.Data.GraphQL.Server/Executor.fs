@@ -57,6 +57,7 @@ type ExecutorMiddleware(?compile, ?postCompile, ?plan, ?execute) =
 /// The standard schema executor.
 /// It compiles the schema and offers an interface for planning and executing queries.
 /// The execution process can be customized through usage of middlewares.
+/// An optional pre-existing validation cache can be supplied.  If not, one is created and used internally.
 type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware seq, ?validationCache : IValidationResultCache) =
     let validationCache = defaultArg validationCache (upcast MemoryValidationResultCache())
 
