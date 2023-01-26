@@ -78,7 +78,6 @@ module HttpHandlers =
                                     if logger.IsEnabled LogLevel.Trace then
                                         logger.LogTrace($"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}", errors, (JsonSerializer.Serialize(data, jsonSerializerOptions)))
                             )
-                    // TODO GBirkel: Should this be "Deferred"?
                     GQLResponse.Direct (documentId, data, errs)
 
                 | Stream stream ->

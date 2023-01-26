@@ -6,7 +6,6 @@ module FSharp.Data.GraphQL.Tests.VariablesTests
 open System.Text.Json
 open System.Collections.Immutable
 open System.Text.Json
-open System.Text.Json
 
 #nowarn "25"
 
@@ -46,10 +45,10 @@ let TestInputObject =
     name = "TestInputObject",
     fields = [
         Define.Input("a", Nullable StringType)
-        Define.Input("b", Nullable( ListOf (Nullable StringType)) )
+        Define.Input("b", Nullable( ListOf (Nullable StringType)))
         Define.Input("c", StringType)
         Define.Input("d", Nullable TestComplexScalar)
-        Define.Input("e", Nullable( InputArrayOf (Nullable StringType)) )
+        Define.Input("e", Nullable( InputArrayOf (Nullable StringType)))
     ])
 
 type TestNestedInput = {
