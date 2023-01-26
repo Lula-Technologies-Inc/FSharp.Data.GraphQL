@@ -43,7 +43,6 @@
   <ItemGroup>
     <Compile Include="Diagnostics.fs" />
     <Compile Include="ObjAndStructConversions.fs" />
-    <Compile Include="JSON.fs" />
     <Compile Include="ValidationTypes.fs" />
     <Compile Include="Extensions.fs" />
     <Compile Include="Errors.fs" />

@@ -1,5 +1,5 @@
 [<CompilationRepresentation (CompilationRepresentationFlags.ModuleSuffix)>]
-module internal FSharp.Data.GraphQL.Json
+module FSharp.Data.GraphQL.Samples.StarWarsApi.Json
 
 open System.Text.Json
 open System.Text.Json.Serialization

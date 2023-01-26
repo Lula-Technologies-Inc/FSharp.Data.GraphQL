@@ -5,6 +5,7 @@ module FSharp.Data.GraphQL.Tests.IntrospectionTests
 
 open System.Text.Json
 open System.Text.Json.Serialization
+open FSharp.Data.GraphQL.Samples.StarWarsApi
 
 #nowarn "25"
 
