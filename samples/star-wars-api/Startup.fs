@@ -9,8 +9,8 @@ open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
+open Microsoft.Extensions.Options
 open Giraffe
-open FSharp.Data.GraphQL
 
 type Startup private () =
     new (configuration: IConfiguration) as this =
@@ -21,8 +21,11 @@ type Startup private () =
         services.AddGiraffe()
                 .Configure(Action<KestrelServerOptions>(fun x -> x.AllowSynchronousIO <- true))
                 .Configure(Action<IISServerOptions>(fun x -> x.AllowSynchronousIO <- true))
-                .Configure<JsonOptions>(Action<JsonOptions>(fun s -> (Json.configureOptions Seq.empty s.SerializerOptions) |> ignore))
-                .AddSingleton<Json.ISerializer>(SystemTextJson.Serializer(Json.serializerOptions))
+                .Configure<JsonOptions>(Action<JsonOptions>(fun s -> (Json.configureDefaultSerializerOptions Seq.empty s.SerializerOptions) |> ignore))
+                .AddSingleton<Json.ISerializer,Json.ISerializer>(
+                    fun sp ->
+                        let options = sp.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions
+                        SystemTextJson.Serializer(options))
         |> ignore
 
     member _.Configure(app: IApplicationBuilder, env: IHostEnvironment) =

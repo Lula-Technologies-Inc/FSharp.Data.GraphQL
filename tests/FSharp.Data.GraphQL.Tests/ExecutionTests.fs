@@ -9,6 +9,7 @@ open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Parser
 open FSharp.Data.GraphQL.Execution
 open Helpers
+open FSharp.Data.GraphQL.Samples.StarWarsApi
 open System.Text.Json
 open System.Collections.Immutable
 

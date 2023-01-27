@@ -4,6 +4,8 @@
 module FSharp.Data.GraphQL.Tests.IntrospectionTests
 
 open System.Text.Json
+open System.Text.Json.Serialization
+open FSharp.Data.GraphQL.Samples.StarWarsApi
 
 #nowarn "25"
 
@@ -282,9 +284,12 @@ let ``Introspection schema should be serializable back and forth using json`` ()
     match result with
     | Direct (data, errors) ->
         empty errors
-        // TODO: https://github.com/Tarmil/FSharp.SystemTextJson/issues/140
         let json = JsonSerializer.Serialize(data, Json.serializerOptions)
-        let deserialized = JsonSerializer.Deserialize<IntrospectionResult>(json, Json.serializerOptions)
+        let skippableOptions =
+            // Use .NET 6 built-in deserialization of F# types to prevent `Some null` deserialization to happen
+            let skippableOptions = Json.defaultJsonFSharpOptions.WithTypes(JsonFSharpTypes.Minimal)
+            JsonSerializerOptions () |> Json.configureSerializerOptions skippableOptions Seq.empty
+        let deserialized = JsonSerializer.Deserialize<IntrospectionResult>(json, skippableOptions)
         let expected = (schema :> ISchema).Introspected
         deserialized.__schema |> equals expected
     | _ -> fail "Expected Direct GQResponse"

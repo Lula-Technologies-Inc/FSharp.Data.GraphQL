@@ -3,7 +3,6 @@
 
 module FSharp.Data.GraphQL.Tests.VariablesTests
 
-open System.Text.Json
 open System.Collections.Immutable
 open System.Text.Json
 
@@ -16,6 +15,7 @@ open FSharp.Data.GraphQL.Ast
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Parser
 open FSharp.Data.GraphQL.Execution
+open FSharp.Data.GraphQL.Samples.StarWarsApi
 
 let TestComplexScalar =
   Define.Scalar(
