@@ -42,7 +42,9 @@ let inline private notAssignableMsg (innerDef : InputDef) value : string =
 
 let rec internal compileByType (errMsg : string) (inputDef : InputDef) : ExecuteInput =
     match inputDef with
+
     | Scalar scalardef -> variableOrElse (InlineConstant >> scalardef.CoerceInput >> Option.toObj)
+
     | InputObject objdef ->
         let objtype = objdef.Type
         let ctor = ReflectionHelper.matchConstructor objtype (objdef.Fields |> Array.map (fun x -> x.Name))
@@ -110,6 +112,7 @@ let rec internal compileByType (errMsg : string) (inputDef : InputDef) : Execute
                     instance
                 | false, _ -> null
             | _ -> null
+
     | List (Input innerdef) ->
         let isArray = inputDef.Type.IsArray
         let inner = compileByType errMsg innerdef
@@ -135,23 +138,23 @@ let rec internal compileByType (errMsg : string) (inputDef : InputDef) : Execute
                     ReflectionHelper.arrayOfList innerdef.Type [ single ]
                 else
                     cons single nil
+
     | Nullable (Input innerdef) ->
         let inner = compileByType errMsg innerdef
         let some, none, _ = ReflectionHelper.optionOfType innerdef.Type
 
-        fun variables value ->
-            let i = inner variables value
-
+        fun value variables ->
+            let i = inner value variables
             match i with
             | null -> none
             | coerced ->
                 let c = some coerced
-
                 if c <> null then
                     c
                 else
                     raise
                     <| GraphQLException (errMsg + notAssignableMsg innerdef coerced)
+
     | Enum enumdef ->
         fun value variables ->
             match value with
@@ -170,6 +173,7 @@ let rec internal compileByType (errMsg : string) (inputDef : InputDef) : Execute
                     |> Option.map (fun x -> x.Value :?> _)
                     |> Option.defaultWith (fun () -> ReflectionHelper.parseUnion enumdef.Type s)
     | _ -> failwithf "Unexpected value of inputDef: %O" inputDef
+
 
 let rec private coerceVariableValue isNullable typedef (vardef : VarDef) (input : JsonElement) (errMsg : string) : obj =
     match typedef with

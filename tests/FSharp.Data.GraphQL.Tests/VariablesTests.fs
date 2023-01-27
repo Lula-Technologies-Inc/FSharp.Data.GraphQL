@@ -45,10 +45,10 @@ let TestInputObject =
     name = "TestInputObject",
     fields = [
         Define.Input("a", Nullable StringType)
-        Define.Input("b", Nullable( ListOf (Nullable StringType)) )
+        Define.Input("b", Nullable( ListOf (Nullable StringType)))
         Define.Input("c", StringType)
         Define.Input("d", Nullable TestComplexScalar)
-        Define.Input("e", Nullable( InputArrayOf (Nullable StringType)) )
+        Define.Input("e", Nullable( InputArrayOf (Nullable StringType)))
     ])
 
 type TestNestedInput = {

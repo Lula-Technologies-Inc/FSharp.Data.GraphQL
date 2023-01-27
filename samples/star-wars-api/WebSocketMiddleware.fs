@@ -107,7 +107,7 @@ module SocketManager =
             do! sendMessage message
         }
 
-        let handle id =
+        let handleGQLResponseContent id =
             function
             | Stream output -> task {
                     let unsubscriber = output |> Observable.subscribe (fun o -> sendMessage (WebSocketServerMessage.OfResponseContent(id, o)) |> Task.WaitAll)
@@ -118,6 +118,10 @@ module SocketManager =
                     let unsubscriber = output |> Observable.subscribe (fun o -> sendDelayed (WebSocketServerMessage.OfResponseContent(id, o)) |> Task.WaitAll)
                     socket.Subscribe(id, unsubscriber)
                 }
+
+            | RequestError errs ->
+                task { Task.Delay 1 |> ignore }    // TODO GBirkel: Placeholder to make build succeed. Replace!
+
             | Direct (data, _) ->
                 send id data
         try
@@ -129,7 +133,7 @@ module SocketManager =
                     do! sendMessage ConnectionAck
                 | ValueSome (Start (id, payload)) ->
                     let! result = executor.AsyncExecute(payload.ExecutionPlan, root(), payload.Variables)
-                    do! handle id result
+                    do! handleGQLResponseContent id result
                     do! Data (id, Dictionary<string, obj>()) |> sendMessage
                 | ValueSome ConnectionTerminate ->
                     do! socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None) |> Async.AwaitTask

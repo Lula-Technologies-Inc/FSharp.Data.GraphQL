@@ -23,13 +23,16 @@ let (|RequestError|Direct|Deferred|Stream|) (response : GQLExecutionResult) =
     | Deferred (data, errors, deferred) -> Deferred (data, errors, deferred)
     | Stream data -> Stream data
 
+
 /// Name value lookup used as output to be serialized into JSON.
 /// It has a form of a dictionary with fixed set of keys. Values under keys
 /// can be set, but no new entry can be added or removed, once lookup
 /// has been initialized.
-/// This dicitionay implements structural equality.
+/// This dictionary implements structural equality.
 type NameValueLookup(keyValues: KeyValuePair<string, obj> []) =
+
     let kvals = keyValues |> Array.distinctBy (fun kv -> kv.Key)
+
     let setValue key value =
         let mutable i = 0
         while i < kvals.Length do
@@ -59,8 +62,10 @@ type NameValueLookup(keyValues: KeyValuePair<string, obj> []) =
                     | (BoxedSeq x), (BoxedSeq y) ->
                         if Seq.length x <> Seq.length y then false else Seq.forall2 (=) x y
                     | a1, b1 -> a1 = b1) y.Buffer
+
     let pad (sb: System.Text.StringBuilder) times =
         for _ in 0..times do sb.Append("\t") |> ignore
+
     let rec stringify (sb: System.Text.StringBuilder) deep (o:obj) =
         match o with
         | :? NameValueLookup as lookup ->
@@ -88,30 +93,39 @@ type NameValueLookup(keyValues: KeyValuePair<string, obj> []) =
         ()
     /// Returns raw content of the current lookup.
     member _.Buffer : KeyValuePair<string, obj> [] = kvals
+
     /// Return a number of entries stored in current lookup. It's fixed size.
     member _.Count = kvals.Length
+
     /// Updates an entry's value under given key. It will throw an exception
     /// if provided key cannot be found in provided lookup.
     member _.Update key value = setValue key value
+
     override x.Equals(other) =
         match other with
         | :? NameValueLookup as lookup -> structEq x lookup
         | _ -> false
+
     override _.GetHashCode() =
         let mutable hash = 0
         for kv in kvals do
             hash <- (hash*397) ^^^ (kv.Key.GetHashCode()) ^^^ (if isNull kv.Value then 0 else kv.Value.GetHashCode())
         hash
+
     override x.ToString() =
-        let sb =Text.StringBuilder()
+        let sb = Text.StringBuilder()
         stringify sb 1 x
         sb.ToString()
+
     interface IEquatable<NameValueLookup> with
         member x.Equals(other) = structEq x other
+
     interface System.Collections.IEnumerable with
         member _.GetEnumerator() = (kvals :> System.Collections.IEnumerable).GetEnumerator()
+
     interface IEnumerable<KeyValuePair<string, obj>> with
         member _.GetEnumerator() = (kvals :> IEnumerable<KeyValuePair<string, obj>>).GetEnumerator()
+
     interface IDictionary<string, obj> with
         member _.Add(_, _) = raise (NotSupportedException "NameValueLookup doesn't allow to add/remove entries")
         member _.Add(_) = raise (NotSupportedException "NameValueLookup doesn't allow to add/remove entries")
@@ -136,14 +150,17 @@ type NameValueLookup(keyValues: KeyValuePair<string, obj> []) =
             match kvals |> Array.tryFind (fun kv -> kv.Key = key) with
             | Some kv -> value <- kv.Value; true
             | None -> value <- null; false
+
     new(t: (string * obj) list) =
         NameValueLookup(t |> List.map (fun (k, v) -> KeyValuePair<string,obj>(k, v)) |> List.toArray)
+
     new(t: string []) =
         NameValueLookup(t |> Array.map (fun k -> KeyValuePair<string,obj>(k, null)))
 
 module NameValueLookup =
     /// Create new NameValueLookup from given list of key-value tuples.
     let ofList (l: (string * obj) list) = NameValueLookup(l)
+
 
 let private collectDefaultArgValue acc (argdef: InputFieldDef) =
     match argdef.DefaultValue with
@@ -170,6 +187,9 @@ let private getOperation = function
     | OperationDefinition odef -> Some odef
     | _ -> None
 
+
+/// Search through the Definitions in the given Document for an OperationDefinition with the given name.
+/// Or, if there was no name given, and there is only one OperationDefinition in the Document, return that.
 let internal findOperation doc opName =
     match doc.Definitions |> List.choose getOperation, opName with
     | [def], _ -> Some def
@@ -219,11 +239,13 @@ let private resolveField (execute: ExecuteField) (ctx: ResolveFieldContext) (par
         execute ctx parentValue
         |> AsyncVal.map(fun v -> if isNull v then None else Some v)
 
+
 type ResolverResult<'T> = Result<'T * IObservable<GQLDeferredResponseContent> option * GQLProblemDetails list, GQLProblemDetails list>
 
 module ResolverResult =
     let mapValue (f : 'T -> 'U) (r : ResolverResult<'T>) : ResolverResult<'U> =
         Result.map(fun (data, deferred, errs) -> (f data, deferred, errs)) r
+
 
 type StreamOutput =
     | NonList of (KeyValuePair<string, obj> * GQLProblemDetails list)
@@ -256,7 +278,6 @@ let deferResults path (res : ResolverResult<obj>) : IObservable<GQLDeferredRespo
 
 /// Collect together an array of results using the appropriate execution strategy.
 let collectFields (strategy : ExecutionStrategy) (rs : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> []) : AsyncVal<ResolverResult<KeyValuePair<string, obj> []>> = asyncVal {
-
         let! collected =
             match strategy with
             | Parallel -> AsyncVal.collectParallel rs
@@ -280,21 +301,25 @@ let collectFields (strategy : ExecutionStrategy) (rs : AsyncVal<ResolverResult<K
 let rec private direct (returnDef : OutputDef) (ctx : ResolveFieldContext) (path : FieldPath) (parent : obj) (value : obj) : AsyncVal<ResolverResult<KeyValuePair<string, obj>>> =
     let name = ctx.ExecutionInfo.Identifier
     match returnDef with
+
     | Object objDef ->
         let fields =
             match ctx.ExecutionInfo.Kind with
             | SelectFields fields -> fields
             | kind -> failwithf "Unexpected value of ctx.ExecutionPlan.Kind: %A" kind
         executeObjectFields fields name objDef ctx path value
+
     | Scalar scalarDef ->
         match scalarDef.CoerceOutput (downcast value) with
         | Some v' -> resolved name v'
         | None -> raiseErrors <| coercionError value scalarDef.Name path ctx
+
     | Enum enumDef ->
         let enumCase = enumDef.Options |> Array.tryPick(fun case -> if case.Value.Equals(value) then Some case.Name else None)
         match enumCase with
         | Some v' -> resolved name (v' :> obj)
         | None -> raiseErrors <| coercionError value enumDef.Name path  ctx
+
     | List (Output innerDef) ->
         let innerCtx =
             match ctx.ExecutionInfo.Kind with
@@ -311,10 +336,12 @@ let rec private direct (returnDef : OutputDef) (ctx : ResolveFieldContext) (path
             |> collectFields Parallel
             |> AsyncVal.map(ResolverResult.mapValue(fun items -> KeyValuePair(name, items |> Array.map(fun d -> d.Value) |> box)))
         | _ -> raise <| GraphQLException (sprintf "Expected to have enumerable value in field '%s' but got '%O'" ctx.ExecutionInfo.Identifier (value.GetType()))
+
     | Nullable (Output innerDef) ->
         let innerCtx = { ctx with ExecutionInfo = { ctx.ExecutionInfo with IsNullable = true; ReturnDef = innerDef } }
         executeResolvers innerCtx path parent (toOption value |> AsyncVal.wrap)
         |> AsyncVal.map(Result.catchError (fun errs -> (KeyValuePair(name, null), None, errs)) >> Ok)
+
     | Interface iDef ->
         let possibleTypesFn = ctx.Schema.GetPossibleTypes
         let resolver = resolveInterfaceType possibleTypesFn iDef
@@ -326,6 +353,7 @@ let rec private direct (returnDef : OutputDef) (ctx : ResolveFieldContext) (path
         match Map.tryFind resolvedDef.Name typeMap with
         | Some fields -> executeObjectFields fields name resolvedDef ctx path value
         | None -> raiseErrors <| interfaceImplError iDef.Name resolvedDef.Name path ctx
+
     | Union uDef ->
         let possibleTypesFn = ctx.Schema.GetPossibleTypes
         let resolver = resolveUnionType possibleTypesFn uDef
@@ -337,6 +365,7 @@ let rec private direct (returnDef : OutputDef) (ctx : ResolveFieldContext) (path
         match Map.tryFind resolvedDef.Name typeMap with
         | Some fields -> executeObjectFields fields name resolvedDef ctx path (uDef.ResolveValue value)
         | None -> raiseErrors <| unionImplError uDef.Name resolvedDef.Name path ctx
+
     | _ -> failwithf "Unexpected value of returnDef: %O" returnDef
 
 and deferred (ctx : ResolveFieldContext) (path : FieldPath) (parent : obj) (value : obj) =
