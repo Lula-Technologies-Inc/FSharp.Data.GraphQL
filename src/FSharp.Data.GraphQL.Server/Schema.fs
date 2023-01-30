@@ -75,6 +75,7 @@ type SchemaConfig =
                 match subscriptionManager.TryGet(subdef.Name) with
                 | Some (sub, channels) ->
                     channels.AddNew(tags)
+                    // TODO: See notes on flatmapAsync in ObservableExtensionsTests.
                     |> Observable.flatmapAsync (fun o -> sub.Filter ctx root o)
                     |> Observable.choose id
                 | None -> Observable.Empty()
