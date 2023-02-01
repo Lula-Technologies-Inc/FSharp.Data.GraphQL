@@ -2,6 +2,11 @@
 // Copyright (c) 2016 Bazinga Technologies Inc
 module FSharp.Data.GraphQL.Execution
 
+open System
+open System.Collections.Generic
+open System.Collections.Immutable
+open System.Text.Json
+
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Ast
 open FSharp.Data.GraphQL.Extensions
@@ -9,10 +14,6 @@ open FSharp.Data.GraphQL.Helpers
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Types.Patterns
 open FSharp.Control.Reactive
-open System
-open System.Collections.Generic
-open System.Collections.Immutable
-open System.Text.Json
 
 type Output = IDictionary<string, obj>
 
@@ -254,7 +255,10 @@ type StreamOutput =
 
 let private raiseErrors errs = AsyncVal.wrap <| Error errs
 
+/// Given an error e, call ParseError in the given context's Schema to convert it into
+/// a list of one or more IGQLErrors, then convert those to a list of GQLProblemDetails.
 let private resolverError path ctx e = ctx.Schema.ParseError e |> List.map (GQLProblemDetails.OfFieldError (path |> List.rev))
+// Helper functions for generating more specific GQLProblemDetails.
 let private nullResolverError name path ctx = resolverError path ctx (GraphQLException <| sprintf "Non-Null field %s resolved as a null!" name)
 let private coercionError value tyName path ctx = resolverError path ctx (GraphQLException <| sprintf "Value '%O' could not be coerced to scalar %s" value tyName)
 let private interfaceImplError ifaceName tyName path ctx = resolverError path ctx (GraphQLException <| sprintf "GraphQL Interface '%s' is not implemented by the type '%s'" ifaceName tyName)
