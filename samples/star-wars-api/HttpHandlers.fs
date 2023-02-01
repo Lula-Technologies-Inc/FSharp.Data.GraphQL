@@ -55,49 +55,97 @@ module HttpHandlers =
             let toResponse { DocumentId = documentId; Content = content; Metadata = metadata } =
                 match content with
                 | Direct (data, errs) ->
-                    logger.LogInformation($"Produced direct GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}", documentId, metadata)
+                    logger.LogInformation (
+                        $"Produced direct GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}",
+                        documentId,
+                        metadata
+                    )
+
                     if logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace($"GraphQL response data:{Environment.NewLine}:{{data}}", JsonSerializer.Serialize(data, jsonSerializerOptions))
+                        logger.LogTrace (
+                            $"GraphQL response data:{Environment.NewLine}:{{data}}",
+                            JsonSerializer.Serialize (data, jsonSerializerOptions)
+                        )
+
                     GQLResponse.Direct (documentId, data, errs)
 
                 | Deferred (data, errs, deferred) ->
-                    logger.LogInformation($"Produced deferred GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}", documentId, metadata)
+                    logger.LogInformation (
+                        $"Produced deferred GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}",
+                        documentId,
+                        metadata
+                    )
+
                     if logger.IsEnabled LogLevel.Information then
-                        deferred |> Observable.add
-                            (function
-                                | DeferredResult (data, path) ->
-                                    logger.LogInformation("Produced GraphQL deferred result for path: {path}", path |> Seq.map string |> Seq.toArray |> Path.Join)
-                                    if logger.IsEnabled LogLevel.Trace then
-                                        logger.LogTrace($"GraphQL deferred data:{Environment.NewLine}{{data}}", (JsonSerializer.Serialize(data, jsonSerializerOptions)))
-                                | DeferredErrors (null, errors, path) ->
-                                    logger.LogInformation("Produced GraphQL deferred errors for path: {path}", path |> Seq.map string |> Seq.toArray |> Path.Join)
-                                    if logger.IsEnabled LogLevel.Trace then
-                                        logger.LogTrace($"GraphQL deferred errors:{Environment.NewLine}{{errors}}", errors)
-                                | DeferredErrors (data, errors, path) ->
-                                    logger.LogInformation("Produced GraphQL deferred result with errors for path: {path}", path |> Seq.map string |> Seq.toArray |> Path.Join)
-                                    if logger.IsEnabled LogLevel.Trace then
-                                        logger.LogTrace($"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}", errors, (JsonSerializer.Serialize(data, jsonSerializerOptions)))
-                            )
+                        deferred
+                        |> Observable.add (function
+                            | DeferredResult (data, path) ->
+                                logger.LogInformation (
+                                    "Produced GraphQL deferred result for path: {path}",
+                                    path |> Seq.map string |> Seq.toArray |> Path.Join
+                                )
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace (
+                                        $"GraphQL deferred data:{Environment.NewLine}{{data}}",
+                                        (JsonSerializer.Serialize (data, jsonSerializerOptions))
+                                    )
+                            | DeferredErrors (null, errors, path) ->
+                                logger.LogInformation (
+                                    "Produced GraphQL deferred errors for path: {path}",
+                                    path |> Seq.map string |> Seq.toArray |> Path.Join
+                                )
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace ($"GraphQL deferred errors:{Environment.NewLine}{{errors}}", errors)
+                            | DeferredErrors (data, errors, path) ->
+                                logger.LogInformation (
+                                    "Produced GraphQL deferred result with errors for path: {path}",
+                                    path |> Seq.map string |> Seq.toArray |> Path.Join
+                                )
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace (
+                                        $"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
+                                        errors,
+                                        (JsonSerializer.Serialize (data, jsonSerializerOptions))
+                                    ))
+
                     GQLResponse.Direct (documentId, data, errs)
 
                 | Stream stream ->
-                    logger.LogInformation($"Produced stream GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}", documentId, metadata)
+                    logger.LogInformation (
+                        $"Produced stream GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}",
+                        documentId,
+                        metadata
+                    )
+
                     if logger.IsEnabled LogLevel.Information then
-                        stream |> Observable.add
-                            (function
-                                | SubscriptionResult data ->
-                                    logger.LogInformation("Produced GraphQL subscription result")
-                                    if logger.IsEnabled LogLevel.Trace then
-                                        logger.LogTrace($"GraphQL subscription data:{Environment.NewLine}{{data}}", (JsonSerializer.Serialize(data, jsonSerializerOptions)))
-                                | SubscriptionErrors (null, errors) ->
-                                    logger.LogInformation("Produced GraphQL subscription errors")
-                                    if logger.IsEnabled LogLevel.Trace then
-                                        logger.LogTrace($"GraphQL subscription errors:{Environment.NewLine}{{errors}}", errors)
-                                | SubscriptionErrors (data, errors) ->
-                                    logger.LogInformation("Produced GraphQL subscription result with errors")
-                                    if logger.IsEnabled LogLevel.Trace then
-                                        logger.LogTrace($"GraphQL subscription errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}", errors, (JsonSerializer.Serialize(data, jsonSerializerOptions)))
-                            )
+                        stream
+                        |> Observable.add (function
+                            | SubscriptionResult data ->
+                                logger.LogInformation ("Produced GraphQL subscription result")
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace (
+                                        $"GraphQL subscription data:{Environment.NewLine}{{data}}",
+                                        (JsonSerializer.Serialize (data, jsonSerializerOptions))
+                                    )
+                            | SubscriptionErrors (null, errors) ->
+                                logger.LogInformation ("Produced GraphQL subscription errors")
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace ($"GraphQL subscription errors:{Environment.NewLine}{{errors}}", errors)
+                            | SubscriptionErrors (data, errors) ->
+                                logger.LogInformation ("Produced GraphQL subscription result with errors")
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace (
+                                        $"GraphQL subscription errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
+                                        errors,
+                                        (JsonSerializer.Serialize (data, jsonSerializerOptions))
+                                    ))
+
                     GQLResponse.Stream documentId
 
                 | RequestError errs ->
@@ -139,15 +187,16 @@ module HttpHandlers =
             }
 
             /// Execute default or custom introspection query
-            let executeIntrospectionQuery (query: string voption) = task {
+            let executeIntrospectionQuery (query : string voption) = task {
                 let! result =
                     match query with
                     | ValueNone ->
-                        logger.LogInformation("Executing default GraphQL introspection query")
-                        Schema.executor.AsyncExecute(Introspection.IntrospectionQuery)
+                        logger.LogInformation ("Executing default GraphQL introspection query")
+                        Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
                     | ValueSome query ->
-                        logger.LogInformation($"Executing GraphQL introspection query:{Environment.NewLine}{query}", query)
+                        logger.LogInformation ($"Executing GraphQL introspection query:{Environment.NewLine}{query}", query)
                         Schema.executor.AsyncExecute query
+
                 let response = result |> toResponse
                 return Results.Ok response
             }
@@ -157,22 +206,25 @@ module HttpHandlers =
                 // let! request = ctx.BindJsonAsync<GQLRequestContent>()
                 let query = request.Query
 
-                logger.LogTrace($"Executing GraphQL query:{Environment.NewLine}{query}", query)
+                logger.LogTrace ($"Executing GraphQL query:{Environment.NewLine}{query}", query)
                 let operationName = request.OperationName |> Skippable.toOption
-                operationName |> Option.iter (fun on -> logger.LogTrace($"GraphQL operation name: '{operationName}'", on))
+
+                operationName
+                |> Option.iter (fun on -> logger.LogTrace ($"GraphQL operation name: '{operationName}'", on))
 
                 let variables = request.Variables |> Skippable.toOption
-                variables |> Option.iter (fun vars -> logger.LogTrace($"GraphQL variables:{Environment.NewLine}{variables}", variables))
 
-                let root = { RequestId = System.Guid.NewGuid() |> string }
+                variables
+                |> Option.iter (fun vars -> logger.LogTrace ($"GraphQL variables:{Environment.NewLine}{variables}", variables))
+
+                let root = { RequestId = System.Guid.NewGuid () |> string }
                 let query = removeWhitespacesAndLineBreaks query
-                let! result =
-                    Schema.executor.AsyncExecute (query, root, ?variables = variables, ?operationName = operationName)
+                let! result = Schema.executor.AsyncExecute (query, root, ?variables = variables, ?operationName = operationName)
                 let response = result |> toResponse
                 return Results.Ok response
             }
 
-            match! detectIntrospectionQuery() with
+            match! detectIntrospectionQuery () with
             | IntrospectionQuery query -> return! executeIntrospectionQuery query
             | OperationQuery gqlRequestContent -> return! executeOperation gqlRequestContent
         } |> ofTaskIResult ctx
