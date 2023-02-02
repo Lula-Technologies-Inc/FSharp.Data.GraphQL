@@ -16,6 +16,7 @@ type File =
 /// Contains customized schema definitions for extensibility features.
 [<AutoOpen>]
 module SchemaDefinitions =
+
     let private coerceUploadInput (_ : InputParameterValue) : File option =
         failwith "Can not coerce upload input. The type `Upload` can only be passed as a variable through a multipart request."
 
@@ -25,8 +26,8 @@ module SchemaDefinitions =
         | _ -> None
 
     /// GraphQL type for binary data stream representation.
-    let Upload : ScalarDefinition<File> =
+    let UploadType : ScalarDefinition<File> =
         { Name = "Upload"
-          Description = Some "The `Upload` type represents an upload of binary data."
+          Description = Some "The `UploadType` type represents an upload of binary data."
           CoerceInput = coerceUploadInput
           CoerceOutput = coerceUploadValue }
