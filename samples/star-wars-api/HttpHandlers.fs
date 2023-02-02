@@ -11,6 +11,7 @@ open Microsoft.AspNetCore.Http.Json
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Options
+
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
 open Giraffe
