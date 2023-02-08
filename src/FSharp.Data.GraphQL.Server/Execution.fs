@@ -256,7 +256,7 @@ type StreamOutput =
 let private raiseErrors errs = AsyncVal.wrap <| Error errs
 
 /// Given an error e, call ParseError in the given context's Schema to convert it into
-/// a list of one or more IGQLErrors, then convert those to a list of GQLProblemDetails.
+/// a list of one or more <see herf="IGQLErrors">IGQLErrors</see>, then convert those to a list of <see href="GQLProblemDetails">GQLProblemDetails</see>.
 let private resolverError path ctx e = ctx.Schema.ParseError e |> List.map (GQLProblemDetails.OfFieldError (path |> List.rev))
 // Helper functions for generating more specific GQLProblemDetails.
 let private nullResolverError name path ctx = resolverError path ctx (GraphQLException <| sprintf "Non-Null field %s resolved as a null!" name)
