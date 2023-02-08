@@ -64,7 +64,7 @@ module HttpHandlers =
 
                     if logger.IsEnabled LogLevel.Trace then
                         logger.LogTrace (
-                            $"GraphQL response data:{Environment.NewLine}:{{data}}",
+                            $"GraphQL response data:{Environment.NewLine}{{data}}",
                             JsonSerializer.Serialize (data, jsonSerializerOptions)
                         )
 
