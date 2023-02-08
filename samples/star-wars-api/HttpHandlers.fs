@@ -176,15 +176,36 @@ module HttpHandlers =
 
             let detectIntrospectionQuery () = task {
                 /// Check for the conditions that would make this an introspection query
-                if isGet then return IntrospectionQuery ValueNone
+                if isGet then
+                    if logger.IsEnabled LogLevel.Trace then
+                        logger.LogTrace ("Request is GET.")
+                    return IntrospectionQuery ValueNone
                 else
                     let! hasBody = checkIfHasBody()
-                    if not hasBody then return IntrospectionQuery ValueNone
+                    if not hasBody then
+                        if logger.IsEnabled LogLevel.Trace then
+                            logger.LogTrace ("Request is not GET but has no body.")
+                        return IntrospectionQuery ValueNone
                     else
                         let! request = ctx.BindJsonAsync<GQLRequestContent>()
+                        // TODO: Swap out IntrospectionQuery content, and construct a custom query to filter and return instead.
                         if Introspection.IntrospectionQuery.Contains request.Query
-                        then return ValueSome request.Query |> IntrospectionQuery
-                        else return OperationQuery request
+                        then
+                            if logger.IsEnabled LogLevel.Trace then
+                                logger.LogTrace ("Request is not GET, has a body, and contains introspection query.")
+                            return ValueSome request.Query |> IntrospectionQuery
+                        else
+                            if logger.IsEnabled LogLevel.Trace then
+                                logger.LogTrace ("Request is not GET and has a body, but body does not contain introspection query.")
+                                logger.LogTrace (
+                                    $"Entire request content:{Environment.NewLine}{{request}}",
+                                    JsonSerializer.Serialize (request, jsonSerializerOptions)
+                                )
+                                logger.LogTrace (
+                                    $"Introspection query:{Environment.NewLine}{{request}}",
+                                    JsonSerializer.Serialize (Introspection.IntrospectionQuery, jsonSerializerOptions)
+                                )
+                            return OperationQuery request
             }
 
             /// Execute default or custom introspection query
