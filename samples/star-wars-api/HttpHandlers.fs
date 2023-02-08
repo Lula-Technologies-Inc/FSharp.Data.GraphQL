@@ -198,14 +198,6 @@ module HttpHandlers =
                         else
                             if logger.IsEnabled LogLevel.Trace then
                                 logger.LogTrace ("Request is not GET and has a body, but body does not contain introspection query.")
-                                logger.LogTrace (
-                                    $"Entire request content:{Environment.NewLine}{{request}}",
-                                    serializeIt request
-                                )
-                                logger.LogTrace (
-                                    $"Introspection query:{Environment.NewLine}{{request}}",
-                                    serializeIt Introspection.IntrospectionQuery
-                                )
                             return OperationQuery request
             }
 
@@ -215,9 +207,9 @@ module HttpHandlers =
                     match query with
                     | ValueNone ->
                         logger.LogInformation ("Executing default GraphQL introspection query")
-                        Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
+                        Schema.executor.AsyncExecute (IntrospectionQuery.IntrospectionQuery)
                     | ValueSome query ->
-                        logger.LogInformation ($"Executing GraphQL introspection query:{Environment.NewLine}{query}", query)
+                        logger.LogInformation ($"Executing GraphQL introspection query:{Environment.NewLine}{{query}}", serializeIt query)
                         Schema.executor.AsyncExecute query
 
                 let response = result |> toResponse
@@ -229,16 +221,16 @@ module HttpHandlers =
                 // let! request = ctx.BindJsonAsync<GQLRequestContent>()
                 let query = request.Query
 
-                logger.LogTrace ($"Executing GraphQL query:{Environment.NewLine}{query}", query)
+                logger.LogTrace ($"Executing GraphQL query:{Environment.NewLine}{{query}}", query)
                 let operationName = request.OperationName |> Skippable.toOption
 
                 operationName
-                |> Option.iter (fun on -> logger.LogTrace ($"GraphQL operation name: '{operationName}'", on))
+                |> Option.iter (fun on -> logger.LogTrace ($"GraphQL operation name: {{on}}", on))
 
                 let variables = request.Variables |> Skippable.toOption
 
                 variables
-                |> Option.iter (fun vars -> logger.LogTrace ($"GraphQL variables:{Environment.NewLine}{variables}", variables))
+                |> Option.iter (fun vars -> logger.LogTrace ($"GraphQL variables: {{vars}}", vars))
 
                 let root = { RequestId = System.Guid.NewGuid () |> string }
                 let query = removeWhitespacesAndLineBreaks query
