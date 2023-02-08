@@ -47,6 +47,7 @@ module HttpHandlers =
         task {
             let logger = ctx.RequestServices.CreateLogger moduleType
             let jsonSerializerOptions = ctx.RequestServices.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions
+            let serializeIt data = JsonSerializer.Serialize (data, jsonSerializerOptions)
             let request = ctx.Request
 
             let isGet = request.Method = HttpMethods.Get
@@ -65,7 +66,7 @@ module HttpHandlers =
                     if logger.IsEnabled LogLevel.Trace then
                         logger.LogTrace (
                             $"GraphQL response data:{Environment.NewLine}{{data}}",
-                            JsonSerializer.Serialize (data, jsonSerializerOptions)
+                            serializeIt data
                         )
 
                     GQLResponse.Direct (documentId, data, errs)
@@ -89,7 +90,7 @@ module HttpHandlers =
                                 if logger.IsEnabled LogLevel.Trace then
                                     logger.LogTrace (
                                         $"GraphQL deferred data:{Environment.NewLine}{{data}}",
-                                        (JsonSerializer.Serialize (data, jsonSerializerOptions))
+                                        serializeIt data
                                     )
                             | DeferredErrors (null, errors, path) ->
                                 logger.LogInformation (
@@ -109,7 +110,7 @@ module HttpHandlers =
                                     logger.LogTrace (
                                         $"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
                                         errors,
-                                        (JsonSerializer.Serialize (data, jsonSerializerOptions))
+                                        serializeIt data
                                     ))
 
                     GQLResponse.Direct (documentId, data, errs)
@@ -130,7 +131,7 @@ module HttpHandlers =
                                 if logger.IsEnabled LogLevel.Trace then
                                     logger.LogTrace (
                                         $"GraphQL subscription data:{Environment.NewLine}{{data}}",
-                                        (JsonSerializer.Serialize (data, jsonSerializerOptions))
+                                        serializeIt data
                                     )
                             | SubscriptionErrors (null, errors) ->
                                 logger.LogInformation ("Produced GraphQL subscription errors")
@@ -144,7 +145,7 @@ module HttpHandlers =
                                     logger.LogTrace (
                                         $"GraphQL subscription errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
                                         errors,
-                                        (JsonSerializer.Serialize (data, jsonSerializerOptions))
+                                        serializeIt data
                                     ))
 
                     GQLResponse.Stream documentId
@@ -199,11 +200,11 @@ module HttpHandlers =
                                 logger.LogTrace ("Request is not GET and has a body, but body does not contain introspection query.")
                                 logger.LogTrace (
                                     $"Entire request content:{Environment.NewLine}{{request}}",
-                                    JsonSerializer.Serialize (request, jsonSerializerOptions)
+                                    serializeIt request
                                 )
                                 logger.LogTrace (
                                     $"Introspection query:{Environment.NewLine}{{request}}",
-                                    JsonSerializer.Serialize (Introspection.IntrospectionQuery, jsonSerializerOptions)
+                                    serializeIt Introspection.IntrospectionQuery
                                 )
                             return OperationQuery request
             }
