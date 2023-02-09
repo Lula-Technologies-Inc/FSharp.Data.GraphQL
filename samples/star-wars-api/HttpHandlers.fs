@@ -77,6 +77,8 @@ module HttpHandlers =
                         documentId,
                         metadata
                     )
+                    if logger.IsEnabled LogLevel.Trace && errs.Length > 0 then
+                        logger.LogTrace ($"{{number}} errors:{Environment.NewLine}{{errs}}", errs.Length, errs)
 
                     if logger.IsEnabled LogLevel.Information then
                         deferred
@@ -151,11 +153,14 @@ module HttpHandlers =
                     GQLResponse.Stream documentId
 
                 | RequestError errs ->
-                    logger.LogInformation(
+                    logger.LogInformation (
                         $"Produced request error GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}",
                         documentId,
                         metadata
                     )
+                    if logger.IsEnabled LogLevel.Trace then
+                        logger.LogTrace ($"{{number}} errors:{Environment.NewLine}{{errs}}", errs.Length, errs)
+
                     GQLResponse.RequestError (documentId, errs)
 
             let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")
