@@ -230,7 +230,7 @@ module HttpHandlers =
                 let operationName = request.OperationName |> Skippable.toOption
 
                 operationName
-                |> Option.iter (fun on -> logger.LogTrace ($"GraphQL operation name: {{on}}", on))
+                |> Option.iter (fun on -> logger.LogTrace ($"GraphQL operation name: {{operationName}}", on))
 
                 let variables = request.Variables |> Skippable.toOption
 
