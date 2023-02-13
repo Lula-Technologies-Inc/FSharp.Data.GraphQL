@@ -184,7 +184,7 @@ module HttpHandlers =
                 /// Check for the conditions that would make this an introspection query
                 if isGet then
                     if logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace ("Request is GET.")
+                        logger.LogTrace ("GraphQL request is GET")
                     return IntrospectionQuery ValueNone
                 else
                     let! hasBody = checkIfHasBody()
