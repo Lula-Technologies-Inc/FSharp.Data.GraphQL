@@ -33,8 +33,8 @@ module LoggingHelpers =
     open Microsoft.Extensions.Logging
 
     type IServiceProvider with
-        member sProvider.CreateLogger (``type`` : Type) =
-            let loggerFactory = sProvider.GetRequiredService<ILoggerFactory>()
+        member serviceProvider.CreateLogger (``type`` : Type) =
+            let loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>()
             loggerFactory.CreateLogger(``type``)
 
 
