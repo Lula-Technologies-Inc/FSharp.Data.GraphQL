@@ -212,7 +212,7 @@ module HttpHandlers =
                     match query with
                     | ValueNone ->
                         logger.LogInformation ("Executing default GraphQL introspection query")
-                        Schema.executor.AsyncExecute (IntrospectionQuery.IntrospectionQuery)
+                        Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
                     | ValueSome query ->
                         logger.LogInformation ($"Executing GraphQL introspection query:{Environment.NewLine}{{query}}", serializeIt query)
                         Schema.executor.AsyncExecute query
