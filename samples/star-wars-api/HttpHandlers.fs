@@ -235,7 +235,7 @@ module HttpHandlers =
                 let variables = request.Variables |> Skippable.toOption
 
                 variables
-                |> Option.iter (fun vars -> logger.LogTrace ($"GraphQL variables: {{vars}}", vars))
+                |> Option.iter (fun vars -> logger.LogTrace ($"GraphQL variables: {{variables}}", vars))
 
                 let root = { RequestId = System.Guid.NewGuid () |> string }
                 let query = removeWhitespacesAndLineBreaks query
