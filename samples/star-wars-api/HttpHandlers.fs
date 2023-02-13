@@ -195,7 +195,7 @@ module HttpHandlers =
                     else
                         let! request = ctx.BindJsonAsync<GQLRequestContent>()
                         // TODO: Swap out IntrospectionQuery content, and construct a custom query to filter and return instead.
-                        if Introspection.IntrospectionQuery.Contains request.Query
+                        if IntrospectionQuery.IntrospectionQuery.Contains request.Query || IntrospectionQuery.IntrospectionQueryAlternate.Contains request.Query
                         then
                             if logger.IsEnabled LogLevel.Trace then
                                 logger.LogTrace ("Request is not GET, has a body, and contains introspection query.")
