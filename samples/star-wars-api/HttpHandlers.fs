@@ -101,6 +101,11 @@ module HttpHandlers =
                     GQLResponse.Stream documentId
 
                 | RequestError errs ->
+                    logger.LogInformation(
+                        $"Produced request error GraphQL response with documentId = '{{documentId}}' and metadata:{Environment.NewLine}{{metadata}}",
+                        documentId,
+                        metadata
+                    )
                     GQLResponse.RequestError (documentId, errs)
 
             let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")

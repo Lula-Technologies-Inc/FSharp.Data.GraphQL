@@ -6,12 +6,14 @@ open System.Collections.Generic
 
 [<AutoOpen>]
 module Helpers =
+
     let tee f x =
         f x
         x
 
 [<AutoOpen>]
 module StringHelpers =
+
     let utf8String (bytes : byte seq) =
         bytes
         |> Seq.filter (fun i -> i > 0uy)
@@ -22,7 +24,9 @@ module StringHelpers =
 
     let isNullOrWhiteSpace (str : string) = String.IsNullOrWhiteSpace (str)
 
-    
+[<AutoOpen>]
+module LoggingHelpers =
+
     open Microsoft.Extensions.DependencyInjection
     open Microsoft.Extensions.Logging
 
@@ -30,6 +34,10 @@ module StringHelpers =
         member sericeProvider.CreateLogger (``type`` : Type) =
             let loggerFactory = sericeProvider.GetRequiredService<ILoggerFactory>()
             loggerFactory.CreateLogger(``type``)
+
+[<AutoOpen>]
+module ReflectionHelpers =
+
     open Microsoft.FSharp.Quotations.Patterns
 
     let getModuleType = function
