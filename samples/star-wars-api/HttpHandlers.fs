@@ -47,7 +47,7 @@ module HttpHandlers =
         task {
             let logger = ctx.RequestServices.CreateLogger moduleType
             let jsonSerializerOptions = ctx.RequestServices.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions
-            let serializeIt data = JsonSerializer.Serialize (data, jsonSerializerOptions)
+            let serializeWithOptions data = JsonSerializer.Serialize (data, jsonSerializerOptions)
             let request = ctx.Request
 
             let isGet = request.Method = HttpMethods.Get
@@ -66,7 +66,7 @@ module HttpHandlers =
                     if logger.IsEnabled LogLevel.Trace then
                         logger.LogTrace (
                             $"GraphQL response data:{Environment.NewLine}{{data}}",
-                            serializeIt data
+                            serializeWithOptions data
                         )
 
                     GQLResponse.Direct (documentId, data, errs)
@@ -92,7 +92,7 @@ module HttpHandlers =
                                 if logger.IsEnabled LogLevel.Trace then
                                     logger.LogTrace (
                                         $"GraphQL deferred data:{Environment.NewLine}{{data}}",
-                                        serializeIt data
+                                        serializeWithOptions data
                                     )
                             | DeferredErrors (null, errors, path) ->
                                 logger.LogInformation (
@@ -112,7 +112,7 @@ module HttpHandlers =
                                     logger.LogTrace (
                                         $"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
                                         errors,
-                                        serializeIt data
+                                        serializeWithOptions data
                                     ))
 
                     GQLResponse.Direct (documentId, data, errs)
@@ -133,7 +133,7 @@ module HttpHandlers =
                                 if logger.IsEnabled LogLevel.Trace then
                                     logger.LogTrace (
                                         $"GraphQL subscription data:{Environment.NewLine}{{data}}",
-                                        serializeIt data
+                                        serializeWithOptions data
                                     )
                             | SubscriptionErrors (null, errors) ->
                                 logger.LogInformation ("Produced GraphQL subscription errors")
@@ -147,7 +147,7 @@ module HttpHandlers =
                                     logger.LogTrace (
                                         $"GraphQL subscription errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
                                         errors,
-                                        serializeIt data
+                                        serializeWithOptions data
                                     ))
 
                     GQLResponse.Stream documentId
@@ -214,7 +214,7 @@ module HttpHandlers =
                         logger.LogInformation ("Executing default GraphQL introspection query")
                         Schema.executor.AsyncExecute (Introspection.IntrospectionQuery)
                     | ValueSome query ->
-                        logger.LogInformation ($"Executing GraphQL introspection query:{Environment.NewLine}{{query}}", serializeIt query)
+                        logger.LogInformation ($"Executing GraphQL introspection query:{Environment.NewLine}{{query}}", serializeWithOptions query)
                         Schema.executor.AsyncExecute query
 
                 let response = result |> toResponse
