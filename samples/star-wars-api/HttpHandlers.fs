@@ -62,12 +62,10 @@ module HttpHandlers =
                         documentId,
                         metadata
                     )
-
-                    if logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace (
-                            $"GraphQL response data:{Environment.NewLine}{{data}}",
-                            serializeWithOptions data
-                        )
+                    logger.LogTrace (
+                        $"GraphQL response data:{Environment.NewLine}{{data}}",
+                        serializeWithOptions data
+                    )
 
                     GQLResponse.Direct (documentId, data, errs)
 
@@ -77,7 +75,7 @@ module HttpHandlers =
                         documentId,
                         metadata
                     )
-                    if logger.IsEnabled LogLevel.Trace && errs.Length > 0 then
+                    if errs.Length > 0 then
                         logger.LogTrace ($"{{number}} errors:{Environment.NewLine}{{errs}}", errs.Length, errs)
 
                     if logger.IsEnabled LogLevel.Information then
@@ -88,32 +86,26 @@ module HttpHandlers =
                                     "Produced GraphQL deferred result for path: {path}",
                                     path |> Seq.map string |> Seq.toArray |> Path.Join
                                 )
-
-                                if logger.IsEnabled LogLevel.Trace then
-                                    logger.LogTrace (
-                                        $"GraphQL deferred data:{Environment.NewLine}{{data}}",
-                                        serializeWithOptions data
-                                    )
+                                logger.LogTrace (
+                                    $"GraphQL deferred data:{Environment.NewLine}{{data}}",
+                                    serializeWithOptions data
+                                )
                             | DeferredErrors (null, errors, path) ->
                                 logger.LogInformation (
                                     "Produced GraphQL deferred errors for path: {path}",
                                     path |> Seq.map string |> Seq.toArray |> Path.Join
                                 )
-
-                                if logger.IsEnabled LogLevel.Trace then
-                                    logger.LogTrace ($"GraphQL deferred errors:{Environment.NewLine}{{errors}}", errors)
+                                logger.LogTrace ($"GraphQL deferred errors:{Environment.NewLine}{{errors}}", errors)
                             | DeferredErrors (data, errors, path) ->
                                 logger.LogInformation (
                                     "Produced GraphQL deferred result with errors for path: {path}",
                                     path |> Seq.map string |> Seq.toArray |> Path.Join
                                 )
-
-                                if logger.IsEnabled LogLevel.Trace then
-                                    logger.LogTrace (
-                                        $"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
-                                        errors,
-                                        serializeWithOptions data
-                                    ))
+                                logger.LogTrace (
+                                    $"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
+                                    errors,
+                                    serializeWithOptions data
+                                ))
 
                     GQLResponse.Direct (documentId, data, errs)
 
@@ -129,26 +121,20 @@ module HttpHandlers =
                         |> Observable.add (function
                             | SubscriptionResult data ->
                                 logger.LogInformation ("Produced GraphQL subscription result")
-
-                                if logger.IsEnabled LogLevel.Trace then
-                                    logger.LogTrace (
-                                        $"GraphQL subscription data:{Environment.NewLine}{{data}}",
-                                        serializeWithOptions data
-                                    )
+                                logger.LogTrace (
+                                    $"GraphQL subscription data:{Environment.NewLine}{{data}}",
+                                    serializeWithOptions data
+                                )
                             | SubscriptionErrors (null, errors) ->
                                 logger.LogInformation ("Produced GraphQL subscription errors")
-
-                                if logger.IsEnabled LogLevel.Trace then
-                                    logger.LogTrace ($"GraphQL subscription errors:{Environment.NewLine}{{errors}}", errors)
+                                logger.LogTrace ($"GraphQL subscription errors:{Environment.NewLine}{{errors}}", errors)
                             | SubscriptionErrors (data, errors) ->
                                 logger.LogInformation ("Produced GraphQL subscription result with errors")
-
-                                if logger.IsEnabled LogLevel.Trace then
-                                    logger.LogTrace (
-                                        $"GraphQL subscription errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
-                                        errors,
-                                        serializeWithOptions data
-                                    ))
+                                logger.LogTrace (
+                                    $"GraphQL subscription errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
+                                    errors,
+                                    serializeWithOptions data
+                                ))
 
                     GQLResponse.Stream documentId
 
@@ -158,8 +144,7 @@ module HttpHandlers =
                         documentId,
                         metadata
                     )
-                    if logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace ($"{{number}} errors:{Environment.NewLine}{{errs}}", errs.Length, errs)
+                    logger.LogTrace ($"{{number}} errors:{Environment.NewLine}{{errs}}", errs.Length, errs)
 
                     GQLResponse.RequestError (documentId, errs)
 
@@ -183,26 +168,22 @@ module HttpHandlers =
             let detectIntrospectionQuery () = task {
                 /// Check for the conditions that would make this an introspection query
                 if isGet then
-                    if logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace ("GraphQL request is GET")
+                    logger.LogTrace ("GraphQL request is GET")
                     return IntrospectionQuery ValueNone
                 else
                     let! hasBody = checkIfHasBody()
                     if not hasBody then
-                        if logger.IsEnabled LogLevel.Trace then
-                            logger.LogTrace ("GraphQL request is not GET, request has no body")
+                        logger.LogTrace ("GraphQL request is not GET, request has no body")
                         return IntrospectionQuery ValueNone
                     else
                         let! request = ctx.BindJsonAsync<GQLRequestContent>()
                         // TODO: Swap out IntrospectionQuery content, and construct a custom query to filter and return instead.
                         if Introspection.IntrospectionQuery.Contains request.Query
                         then
-                            if logger.IsEnabled LogLevel.Trace then
-                                logger.LogTrace ("GraphQL request is not GET, request has a body, body contains introspection query")
+                            logger.LogTrace ("GraphQL request is not GET, request has a body, body contains introspection query")
                             return ValueSome request.Query |> IntrospectionQuery
                         else
-                            if logger.IsEnabled LogLevel.Trace then
-                                logger.LogTrace ("GraphQL request is not GET, request has a body, body does not contain default introspection query")
+                            logger.LogTrace ("GraphQL request is not GET, request has a body, body does not contain default introspection query")
                             return OperationQuery request
             }
 
