@@ -190,7 +190,7 @@ module HttpHandlers =
                     let! hasBody = checkIfHasBody()
                     if not hasBody then
                         if logger.IsEnabled LogLevel.Trace then
-                            logger.LogTrace ("Request is not GET but has no body.")
+                            logger.LogTrace ("GraphQL request is not GET, request has no body")
                         return IntrospectionQuery ValueNone
                     else
                         let! request = ctx.BindJsonAsync<GQLRequestContent>()
@@ -198,11 +198,11 @@ module HttpHandlers =
                         if Introspection.IntrospectionQuery.Contains request.Query
                         then
                             if logger.IsEnabled LogLevel.Trace then
-                                logger.LogTrace ("Request is not GET, has a body, and contains introspection query.")
+                                logger.LogTrace ("GraphQL request is not GET, request has a body, body contains introspection query")
                             return ValueSome request.Query |> IntrospectionQuery
                         else
                             if logger.IsEnabled LogLevel.Trace then
-                                logger.LogTrace ("Request is not GET and has a body, but body does not contain introspection query.")
+                                logger.LogTrace ("GraphQL request is not GET, request has a body, body does not contain default introspection query")
                             return OperationQuery request
             }
 
