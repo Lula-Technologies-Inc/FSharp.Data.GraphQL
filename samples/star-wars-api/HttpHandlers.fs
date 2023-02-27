@@ -62,10 +62,12 @@ module HttpHandlers =
                         documentId,
                         metadata
                     )
-                    logger.LogTrace (
-                        $"GraphQL response data:{Environment.NewLine}{{data}}",
-                        serializeWithOptions data
-                    )
+
+                    if logger.IsEnabled LogLevel.Trace then
+                        logger.LogTrace (
+                            $"GraphQL response data:{Environment.NewLine}{{data}}",
+                            serializeWithOptions data
+                        )
 
                     GQLResponse.Direct (documentId, data, errs)
 
@@ -86,10 +88,12 @@ module HttpHandlers =
                                     "Produced GraphQL deferred result for path: {path}",
                                     path |> Seq.map string |> Seq.toArray |> Path.Join
                                 )
-                                logger.LogTrace (
-                                    $"GraphQL deferred data:{Environment.NewLine}{{data}}",
-                                    serializeWithOptions data
-                                )
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace (
+                                        $"GraphQL deferred data:{Environment.NewLine}{{data}}",
+                                        serializeWithOptions data
+                                    )
                             | DeferredErrors (null, errors, path) ->
                                 logger.LogInformation (
                                     "Produced GraphQL deferred errors for path: {path}",
@@ -101,11 +105,13 @@ module HttpHandlers =
                                     "Produced GraphQL deferred result with errors for path: {path}",
                                     path |> Seq.map string |> Seq.toArray |> Path.Join
                                 )
-                                logger.LogTrace (
-                                    $"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
-                                    errors,
-                                    serializeWithOptions data
-                                ))
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace (
+                                        $"GraphQL deferred errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
+                                        errors,
+                                        serializeWithOptions data
+                                    ))
 
                     GQLResponse.Direct (documentId, data, errs)
 
@@ -121,20 +127,24 @@ module HttpHandlers =
                         |> Observable.add (function
                             | SubscriptionResult data ->
                                 logger.LogInformation ("Produced GraphQL subscription result")
-                                logger.LogTrace (
-                                    $"GraphQL subscription data:{Environment.NewLine}{{data}}",
-                                    serializeWithOptions data
-                                )
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace (
+                                        $"GraphQL subscription data:{Environment.NewLine}{{data}}",
+                                        serializeWithOptions data
+                                    )
                             | SubscriptionErrors (null, errors) ->
                                 logger.LogInformation ("Produced GraphQL subscription errors")
                                 logger.LogTrace ($"GraphQL subscription errors:{Environment.NewLine}{{errors}}", errors)
                             | SubscriptionErrors (data, errors) ->
                                 logger.LogInformation ("Produced GraphQL subscription result with errors")
-                                logger.LogTrace (
-                                    $"GraphQL subscription errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
-                                    errors,
-                                    serializeWithOptions data
-                                ))
+
+                                if logger.IsEnabled LogLevel.Trace then
+                                    logger.LogTrace (
+                                        $"GraphQL subscription errors:{Environment.NewLine}{{errors}}{Environment.NewLine}GraphQL deferred data:{Environment.NewLine}{{data}}",
+                                        errors,
+                                        serializeWithOptions data
+                                    ))
 
                     GQLResponse.Stream documentId
 
