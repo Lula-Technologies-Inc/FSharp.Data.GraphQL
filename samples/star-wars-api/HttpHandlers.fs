@@ -203,6 +203,62 @@ module HttpHandlers =
                     else
                         true
 
+                        let private metaTypeFields =
+                            [| { Name = "__type"; ArgumentNames = [|"name"|] }
+                            { Name = "__schema"; ArgumentNames = [||] }
+                            { Name = "__typename"; ArgumentNames = [||] } |]
+                            |> Array.map (fun x -> x.Name, x)
+                            |> Map.ofArray
+
+                        let definitions =
+
+                            let fragmentDefinitions =
+                                ast.Definitions
+                                |> List.choose (function | FragmentDefinition x when x.Name.IsSome -> Some x | _ -> None)
+
+                            let fragmentInfos =
+                                fragmentDefinitions
+                                |> List.choose (fun def ->
+                                    def.TypeCondition
+                                    |> Option.bind (fun typeCondition ->
+                                        schemaInfo.TryGetTypeByName(typeCondition)
+                                        |> Option.map (fun fragType ->
+                                            let fragCtx =
+                                                { Schema = schemaInfo
+                                                FragmentDefinitions = fragmentDefinitions
+                                                ParentType = fragType
+                                                FragmentType = Some (Spread (def.Name.Value, def.Directives, fragType))
+                                                Path = [def.Name.Value]
+                                                SelectionSet = def.SelectionSet }
+                                            FragmentDefinitionInfo { Definition = def
+                                                                    SelectionSet = getSelectionSetInfo [] fragCtx })))
+                            let operationInfos =
+                                getOperationDefinitions ast
+                                |> List.choose (fun def ->
+                                    schemaInfo.TryGetOperationType(def.OperationType)
+                                    |> Option.map (fun parentType ->
+                                        let path = match def.Name with | Some name -> [ box name ] | None -> []
+                                        let opCtx =
+                                            { Schema = schemaInfo
+                                            FragmentDefinitions = fragmentDefinitions
+                                            ParentType = parentType
+                                            FragmentType = None
+                                            Path = path
+                                            SelectionSet = def.SelectionSet }
+                                        OperationDefinitionInfo { Definition = def
+                                                                  SelectionSet = getSelectionSetInfo [] opCtx }))
+                            fragmentInfos @ operationInfos
+
+                        let collectBooleans (f : 'T -> bool) (xs : 'T seq) : bool =
+                            Seq.fold (fun acc t -> acc && (f t)) true xs
+
+                        let onAllSelections (ctx : ValidationContext) (onSelection : SelectionInfo -> bool) =
+                            let rec traverseSelections selection = (onSelection selection) @@ (selection.SelectionSet |> collectBooleans traverseSelections)
+                            definitions |> collectBooleans (fun def -> def.SelectionSet |> collectBooleans traverseSelections)
+
+                        let allFieldsAreMetaType = onAllSelections ctx (fun selection -> metaTypeFields.ContainsKey(selection.Field.Name))
+
+
 
 
             /// Execute default or custom introspection query
