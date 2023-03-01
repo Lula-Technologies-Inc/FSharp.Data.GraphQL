@@ -35,7 +35,6 @@ module HttpHandlers =
     let ofTaskIResult ctx (taskRes: Task<IResult>) : HttpFuncResult = task {
         let! res = taskRes
         do! res.ExecuteAsync(ctx)
-
         return Some ctx
     }
 
