@@ -14,6 +14,7 @@ open Microsoft.Extensions.Options
 
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
+open FSharp.Data.GraphQL.Ast
 open Giraffe
 
 type HttpHandler = HttpFunc -> HttpContext -> HttpFuncResult
@@ -194,71 +195,46 @@ module HttpHandlers =
             }
 
             /// Check for the conditions that would make this an introspection query
-            let isDocumentIntrospectionQuery (ast:Ast.Document) (operation: string option) : bool =
+            let isDocumentIntrospectionQuery (ast:Ast.Document) (operationName: string option) : bool =
+
+                let getOperation = function
+                    | OperationDefinition odef -> Some odef
+                    | _ -> None
+
+                let findOperation doc opName =
+                    match ast.Definitions |> List.choose getOperation, opName with
+                    | [def], _ -> Some def
+                    | defs, name ->
+                        defs
+                        |> List.tryFind (fun def -> def.Name = name)
+
                 match findOperation ast operationName with
-                | None -> false
+                | None ->
+                    logger.LogTrace ("Document has no operation.")
+                    false
                 | Some operation ->
                     if not (operation.OperationType = Query) then
+                        logger.LogTrace ("Document operation is not of type Query.")
                         false
                     else
-                        true
+                        let metaTypeFields =
+                            [ "__type"; "__schema"; "__typename" ]
+                            |> Set.ofList
 
-                        let private metaTypeFields =
-                            [| { Name = "__type"; ArgumentNames = [|"name"|] }
-                            { Name = "__schema"; ArgumentNames = [||] }
-                            { Name = "__typename"; ArgumentNames = [||] } |]
-                            |> Array.map (fun x -> x.Name, x)
-                            |> Map.ofArray
-
-                        let definitions =
-
-                            let fragmentDefinitions =
-                                ast.Definitions
-                                |> List.choose (function | FragmentDefinition x when x.Name.IsSome -> Some x | _ -> None)
-
-                            let fragmentInfos =
-                                fragmentDefinitions
-                                |> List.choose (fun def ->
-                                    def.TypeCondition
-                                    |> Option.bind (fun typeCondition ->
-                                        schemaInfo.TryGetTypeByName(typeCondition)
-                                        |> Option.map (fun fragType ->
-                                            let fragCtx =
-                                                { Schema = schemaInfo
-                                                FragmentDefinitions = fragmentDefinitions
-                                                ParentType = fragType
-                                                FragmentType = Some (Spread (def.Name.Value, def.Directives, fragType))
-                                                Path = [def.Name.Value]
-                                                SelectionSet = def.SelectionSet }
-                                            FragmentDefinitionInfo { Definition = def
-                                                                    SelectionSet = getSelectionSetInfo [] fragCtx })))
-                            let operationInfos =
-                                getOperationDefinitions ast
-                                |> List.choose (fun def ->
-                                    schemaInfo.TryGetOperationType(def.OperationType)
-                                    |> Option.map (fun parentType ->
-                                        let path = match def.Name with | Some name -> [ box name ] | None -> []
-                                        let opCtx =
-                                            { Schema = schemaInfo
-                                            FragmentDefinitions = fragmentDefinitions
-                                            ParentType = parentType
-                                            FragmentType = None
-                                            Path = path
-                                            SelectionSet = def.SelectionSet }
-                                        OperationDefinitionInfo { Definition = def
-                                                                  SelectionSet = getSelectionSetInfo [] opCtx }))
-                            fragmentInfos @ operationInfos
-
-                        let collectBooleans (f : 'T -> bool) (xs : 'T seq) : bool =
-                            Seq.fold (fun acc t -> acc && (f t)) true xs
-
-                        let onAllSelections (ctx : ValidationContext) (onSelection : SelectionInfo -> bool) =
-                            let rec traverseSelections selection = (onSelection selection) @@ (selection.SelectionSet |> collectBooleans traverseSelections)
-                            definitions |> collectBooleans (fun def -> def.SelectionSet |> collectBooleans traverseSelections)
-
-                        let allFieldsAreMetaType = onAllSelections ctx (fun selection -> metaTypeFields.ContainsKey(selection.Field.Name))
-
-
+                        let anyFieldIsNotMetaType =
+                            // Run through the definitions, stopping and returning true if any name
+                            // does not match the ones in metaTypeFields.
+                            Seq.exists (fun definition ->
+                                    match definition with
+                                    | Field fd ->
+                                        logger.LogTrace ($"Operation Selection is Field with name: {{n}}", fd.Name)
+                                        not <| metaTypeFields.Contains(fd.Name)
+                                    | _ ->
+                                        logger.LogTrace ("Operation Selection is non-Field type")
+                                        false
+                            ) operation.SelectionSet
+                        // If all of them passed the test, this is an introspection query.
+                        not anyFieldIsNotMetaType
 
 
             /// Execute default or custom introspection query
