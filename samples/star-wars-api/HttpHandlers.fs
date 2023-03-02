@@ -182,7 +182,7 @@ module HttpHandlers =
                 else
                     let! hasBody = checkIfHasBody()
                     if not hasBody then
-                        logger.LogTrace ("Request is not GET but has no body.  Must be introspection query.")
+                        logger.LogTrace ("Request is not GET but has no body.  Must be an introspection query.")
                         return true
                     else
                         logger.LogTrace ("Request is not GET and has a body.")
