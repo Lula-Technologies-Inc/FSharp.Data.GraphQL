@@ -230,8 +230,6 @@ module HttpHandlers =
                             ) operation.SelectionSet
                         // If all of them passed the test, this is an introspection query.
                         not anyFieldIsNotMetaType
-
-
             /// Execute default or custom introspection query
             let executeIntrospectionQuery (ast : Ast.Document voption) = task {
                 let! result =
