@@ -213,8 +213,8 @@ module HttpHandlers =
                         false
                     else
                         let metaTypeFields =
-                            [ "__type"; "__schema"; "__typename" ]
-                            |> Set.ofList
+                            seq { "__type"; "__schema"; "__typename" }
+                            |> Seq.toHashSet
 
                         let anyFieldIsNotMetaType =
                             // Run through the definitions, stopping and returning true if any name
