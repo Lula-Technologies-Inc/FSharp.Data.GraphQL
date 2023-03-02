@@ -190,7 +190,7 @@ module HttpHandlers =
             }
 
             /// Check if the document is an introspection query
-            let isDocumentIntrospection (ast:Ast.Document) (operationName: string option) : bool =
+            let isDocumentIntrospection (ast : Ast.Document) (operationName : string option) : bool =
 
                 let getOperation = function
                     | OperationDefinition odef -> Some odef
