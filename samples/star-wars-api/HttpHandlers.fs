@@ -177,7 +177,7 @@ module HttpHandlers =
             /// Check if the request is an introspection query.
             let isRequestIntrospection () = task {
                 if request.Method = HttpMethods.Get then
-                    logger.LogTrace ("Request is GET.  Must be introspection query.")
+                    logger.LogTrace ("Request is GET. Must be an introspection query.")
                     return true
                 else
                     let! hasBody = checkIfHasBody()
