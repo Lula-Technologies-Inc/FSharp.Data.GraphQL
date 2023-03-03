@@ -214,7 +214,7 @@ module HttpHandlers =
                     else
                         let metaTypeFields =
                             seq { "__type"; "__schema"; "__typename" }
-                            |> Seq.toHashSet
+                            |> Set.ofSeq
 
                         let anyFieldIsNotMetaType =
                             // Run through the definitions, stopping and returning true if any name
@@ -256,13 +256,13 @@ module HttpHandlers =
                 if isDocumentIntrospection ast operationName then
 
                     if logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace ($"Executing GraphQL introspection query:{Environment.NewLine}{{query}}", serializeIt query)
+                        logger.LogTrace ($"Executing GraphQL introspection query:{Environment.NewLine}{{query}}", serializeWithOptions query)
                     return! executeIntrospectionQuery (ValueSome ast)
 
                 else
 
                     if logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace ($"Executing GraphQL query:{Environment.NewLine}{{query}}", serializeIt query)
+                        logger.LogTrace ($"Executing GraphQL query:{Environment.NewLine}{{query}}", serializeWithOptions query)
 
                     let variables = gqlRequest.Variables |> Skippable.toOption
                     variables |> Option.iter (fun v -> logger.LogTrace($"GraphQL variables:{Environment.NewLine}{{variables}}", v))
