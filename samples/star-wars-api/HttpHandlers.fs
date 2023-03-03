@@ -175,14 +175,14 @@ module HttpHandlers =
             }
 
             /// Check if the request is an introspection query.
-            let isRequestIntrospection ()  = task {
+            let isRequestIntrospection () = task {
                 if request.Method = HttpMethods.Get then
-                    logger.LogTrace ("Request is GET.  Must be introspection query.")
+                    logger.LogTrace ("Request is GET. Must be an introspection query.")
                     return true
                 else
                     let! hasBody = checkIfHasBody()
                     if not hasBody then
-                        logger.LogTrace ("Request is not GET but has no body.  Must be introspection query.")
+                        logger.LogTrace ("Request is not GET but has no body.  Must be an introspection query.")
                         return true
                     else
                         logger.LogTrace ("Request is not GET and has a body.")
@@ -190,7 +190,7 @@ module HttpHandlers =
             }
 
             /// Check if the document is an introspection query
-            let isDocumentIntrospection (ast:Ast.Document) (operationName: string option) : bool =
+            let isDocumentIntrospection (ast : Ast.Document) (operationName : string option) : bool =
 
                 let getOperation = function
                     | OperationDefinition odef -> Some odef
@@ -213,8 +213,8 @@ module HttpHandlers =
                         false
                     else
                         let metaTypeFields =
-                            [ "__type"; "__schema"; "__typename" ]
-                            |> Set.ofList
+                            seq { "__type"; "__schema"; "__typename" }
+                            |> Set.ofSeq
 
                         let anyFieldIsNotMetaType =
                             // Run through the definitions, stopping and returning true if any name
@@ -230,8 +230,6 @@ module HttpHandlers =
                             ) operation.SelectionSet
                         // If all of them passed the test, this is an introspection query.
                         not anyFieldIsNotMetaType
-
-
             /// Execute default or custom introspection query
             let executeIntrospectionQuery (ast : Ast.Document voption) = task {
                 let! result =
@@ -258,13 +256,13 @@ module HttpHandlers =
                 if isDocumentIntrospection ast operationName then
 
                     if logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace ($"Executing GraphQL introspection query:{Environment.NewLine}{{query}}", serializeIt query)
+                        logger.LogTrace ($"Executing GraphQL introspection query:{Environment.NewLine}{{query}}", serializeWithOptions query)
                     return! executeIntrospectionQuery (ValueSome ast)
 
                 else
 
                     if logger.IsEnabled LogLevel.Trace then
-                        logger.LogTrace ($"Executing GraphQL query:{Environment.NewLine}{{query}}", serializeIt query)
+                        logger.LogTrace ($"Executing GraphQL query:{Environment.NewLine}{{query}}", serializeWithOptions query)
 
                     let variables = gqlRequest.Variables |> Skippable.toOption
                     variables |> Option.iter (fun v -> logger.LogTrace($"GraphQL variables:{Environment.NewLine}{{variables}}", v))
