@@ -1,11 +1,12 @@
-namespace FSharp.Data.GraphQL.IntegrationTests.Server
+namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
 open System.Text
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
+open FSharp.Data.GraphQL.IntegrationTests.Server
 
 type Root =
-    { RequestId : string }
+    { RequestId : System.Guid }
 
 type InputField =
     { String : string

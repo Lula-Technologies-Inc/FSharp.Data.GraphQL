@@ -1,4 +1,4 @@
-﻿namespace FSharp.Data.GraphQL.IntegrationTests.Server
+namespace FSharp.Data.GraphQL.IntegrationTests.Server
 
 open System
 open Microsoft.AspNetCore.Builder
@@ -11,6 +11,7 @@ open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Options
 open Giraffe
+open FSharp.Data.GraphQL.Samples.StarWarsApi
 
 type Startup private () =
     new (configuration: IConfiguration) as this =
