@@ -39,6 +39,13 @@ execContext
 |> Fake.Core.Context.setExecutionContext
 #endif
 
+let configurationString = Environment.environVarOrDefault "CONFIGURATION" "Release"
+let configuration =
+    match configurationString with
+    | "Debug" -> DotNet.BuildConfiguration.Debug
+    | "Release" -> DotNet.BuildConfiguration.Release
+    | config -> DotNet.BuildConfiguration.Custom config
+
 // --------------------------------------------------------------------------------------
 // Information about the project are used
 // --------------------------------------------------------------------------------------
@@ -72,14 +79,14 @@ Target.create "Build" <| fun _ ->
     "FSharp.Data.GraphQL.sln"
     |> DotNet.build (fun o ->
         { o with
-            Configuration = DotNet.BuildConfiguration.Release
+            Configuration = configuration
             MSBuildParams = { o.MSBuildParams with DisableInternalBinLog = true } })
 
 let startGraphQLServer (project : string) port (streamRef : DataRef<Stream>) =
     DotNet.build
         (fun options ->
             { options with
-                Configuration = DotNet.BuildConfiguration.Release
+                Configuration = configuration
                 MSBuildParams = { options.MSBuildParams with DisableInternalBinLog = true } })
         project
 
@@ -89,11 +96,11 @@ let startGraphQLServer (project : string) port (streamRef : DataRef<Stream>) =
     let serverExe =
         projectPath
         </> "bin"
-        </> "Release"
+        </> configurationString
         </> DotNetMoniker
         </> (projectName + ".dll")
 
-    CreateProcess.fromRawCommandLine "dotnet" $"{serverExe} --urls=http://localhost:%i{port}/"
+    CreateProcess.fromRawCommandLine "dotnet" $"{serverExe} --configuration {configurationString} --urls=http://localhost:%i{port}/"
     |> CreateProcess.withStandardInput (CreatePipe streamRef)
     |> Proc.start
     |> ignore
@@ -104,14 +111,14 @@ let runTests (project : string) =
     DotNet.build
         (fun options ->
             { options with
-                Configuration = DotNet.BuildConfiguration.Release
+                Configuration = configuration
                 MSBuildParams = { options.MSBuildParams with DisableInternalBinLog = true } })
         project
 
     DotNet.test
         (fun options ->
             { options with
-                Configuration = DotNet.BuildConfiguration.Release
+                Configuration = configuration
                 MSBuildParams = { options.MSBuildParams with DisableInternalBinLog = true }
                 Common = { options.Common with CustomParams = Some "--no-build -v=normal" } })
         project
