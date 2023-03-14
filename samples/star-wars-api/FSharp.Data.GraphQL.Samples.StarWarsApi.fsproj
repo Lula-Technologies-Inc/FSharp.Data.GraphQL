@@ -8,7 +8,6 @@
 
   <ItemGroup Label="PackageReferences">
     <PackageReference Include="Giraffe" />
-    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="GraphQL.Server.Ui.Playground" />
     <PackageReference Include="GraphQL.Server.Ui.Voyager" />
     <PackageReference Include="HotChocolate.AspNetCore" />

@@ -13,7 +13,6 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Options
 
 open FSharp.Data.GraphQL
-open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Ast
 open Giraffe
 
@@ -23,11 +22,6 @@ type private GQLRequestContent =
     { Query : string
       OperationName : Skippable<string>
       Variables : Skippable<ImmutableDictionary<string, JsonElement>> }
-
-[<Struct>]
-type private OperationType =
-    | IntrospectionQuery of introspection: string voption
-    | OperationQuery of operation: GQLRequestContent
 
 module HttpHandlers =
 

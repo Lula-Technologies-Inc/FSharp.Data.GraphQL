@@ -7,7 +7,6 @@
 
   <ItemGroup>
     <PackageReference Include="Giraffe" />
-    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="HotChocolate.AspNetCore" />
   </ItemGroup>
