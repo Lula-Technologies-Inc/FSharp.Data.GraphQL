@@ -8,6 +8,7 @@ open System.Text.Json.Serialization
 open System.Threading.Tasks
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Json
+open Microsoft.AspNetCore.WebUtilities
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Options
@@ -34,6 +35,7 @@ module HttpHandlers =
     let setCorsHeaders : HttpHandler =
         setHttpHeader "Access-Control-Allow-Origin" "*"
         >=> setHttpHeader "Access-Control-Allow-Headers" "content-type"
+
 
     let private graphQL (next : HttpFunc) (ctx : HttpContext) =
 
@@ -149,43 +151,6 @@ module HttpHandlers =
 
         let removeWhitespacesAndLineBreaks (str : string) = str.Trim().Replace ("\r\n", " ")
 
-        /// Check if the request contains a body
-        let hasRequestBody () =
-
-            if request.Body.CanSeek then
-                request.Body.Length > 0L |> Task.FromResult
-            else
-
-            task {
-                // EnableBuffering allows us to read the Body even if it's been read already somewhere else.
-                // See https://devblogs.microsoft.com/dotnet/re-reading-asp-net-core-request-bodies-with-enablebuffering/
-                request.EnableBuffering ()
-                let body = request.Body
-                let buffer = Array.zeroCreate 1
-                let! bytesRead = body.ReadAsync (buffer, 0, 1)
-                body.Seek (0, SeekOrigin.Begin) |> ignore
-                return bytesRead > 0
-            }
-
-        /// Check for the conditions that would make this an introspection query
-        let isRequestEmpty () =
-
-            if request.Method = HttpMethods.Get then
-                logger.LogTrace ("Request is GET. Must be an introspection query")
-                true |> Task.FromResult
-            else
-
-            task {
-                let! hasBody = hasRequestBody ()
-
-                if not hasBody then
-                    logger.LogTrace ("Request is not GET but has no body. Must be an introspection query")
-                    return true
-                else
-                    logger.LogTrace ("Request is not GET and has a body")
-                    return false
-            }
-
         /// Check for the conditions that would make this an introspection query
         let isIntrospectionOnlyQuery (ast : Ast.Document) (operationName : string option) : bool =
 
@@ -238,54 +203,151 @@ module HttpHandlers =
                     | ValueNone -> Schema.executor.AsyncExecute (IntrospectionQuery.IntrospectionQuery)
                     | ValueSome ast -> Schema.executor.AsyncExecute (ast)
 
-                let response = result |> toResponse
-                return Results.Ok response
+                return result
             }
 
         /// Execute the operation for given request
-        let executeOperation () =
+        let executeOperation (operation : GQLRequestContent) =
             task {
-                let! gqlRequest = ctx.BindJsonAsync<GQLRequestContent> ()
-
-                let operationName = gqlRequest.OperationName |> Skippable.toOption
+                let query = operation.Query
+                let operationName = operation.OperationName |> Skippable.toOption
+                let variables = operation.Variables |> Skippable.toOption
 
                 operationName
                 |> Option.iter (fun on -> logger.LogTrace ($"GraphQL operation name: {{on}}", on))
 
-                let query = gqlRequest.Query
                 let ast = Parser.parse (removeWhitespacesAndLineBreaks query)
 
                 if isIntrospectionOnlyQuery ast operationName then
-
                     if logger.IsEnabled LogLevel.Trace then
                         logger.LogTrace ($"Executing GraphQL introspection query:{Environment.NewLine}{{query}}", serializeWithOptions query)
-
-                    return! executeIntrospectionQuery (ValueSome ast)
+                    let! result = executeIntrospectionQuery (ValueSome ast)
+                    return result
 
                 else
 
-                if logger.IsEnabled LogLevel.Trace then
-                    logger.LogTrace ($"Executing GraphQL query:{Environment.NewLine}{{query}}", serializeWithOptions query)
+                    if logger.IsEnabled LogLevel.Trace then
+                        logger.LogTrace ($"Executing GraphQL query:{Environment.NewLine}{{query}}", serializeWithOptions query)
 
-                let variables = gqlRequest.Variables |> Skippable.toOption
+                    variables
+                    |> Option.iter (fun v -> logger.LogTrace ($"GraphQL variables:{Environment.NewLine}{{variables}}", v))
 
-                variables
-                |> Option.iter (fun v -> logger.LogTrace ($"GraphQL variables:{Environment.NewLine}{{variables}}", v))
-
-                let root = { RequestId = System.Guid.NewGuid () }
-                let executionPlan = Schema.executor.CreateExecutionPlan (ast, ?operationName = operationName)
-                let! result = Schema.executor.AsyncExecute (executionPlan, root, ?variables = variables)
-                let response = result |> toResponse
-                return Results.Ok response
+                    let root = { RequestId = System.Guid.NewGuid () }
+                    let executionPlan = Schema.executor.CreateExecutionPlan (ast, ?operationName = operationName)
+                    let! result = Schema.executor.AsyncExecute (executionPlan, root, ?variables = variables)
+                    return result
             }
 
+
+        /// Check if the request contains a body
+        let hasRequestBody (req : HttpRequest) =
+            if req.Body.CanSeek then
+                req.Body.Length > 0L |> Task.FromResult
+            else
+                task {
+                    // EnableBuffering allows us to read the Body even if it's been read already somewhere else.
+                    // See https://devblogs.microsoft.com/dotnet/re-reading-asp-net-core-request-bodies-with-enablebuffering/
+                    req.EnableBuffering ()
+                    let body = req.Body
+                    let buffer = Array.zeroCreate 1
+                    // All we need to ask for is the first byte.
+                    let! bytesRead = body.ReadAsync (buffer, 0, 1)
+                    body.Seek (0, SeekOrigin.Begin) |> ignore
+                    return bytesRead > 0
+                }
+
+        /// Check for the conditions that would make this an introspection query
+        let isRequestEmpty (req : HttpRequest) (logger : ILogger)=
+            if req.Method = HttpMethods.Get then
+                logger.LogTrace ("Request is GET. Must be an introspection query")
+                true |> Task.FromResult
+            else
+                task {
+                    let! hasBody = hasRequestBody req
+                    if not hasBody then
+                        logger.LogTrace ("Request is not GET but has no body. Must be an introspection query")
+                        return true
+                    else
+                        logger.LogTrace ("Request is not GET and has a body")
+                        return false
+                }
+
         task {
-            let! requestIsEmpty = isRequestEmpty ()
+            let! requestIsEmpty = isRequestEmpty request logger
+
+            /// Returns true if the given HttpRequest is multi-part.
+            let isMultipartRequest (req : HttpRequest) =
+                not (System.String.IsNullOrEmpty(req.ContentType)) && req.ContentType.Contains("multipart/form-data")
 
             if requestIsEmpty then
-                return! executeIntrospectionQuery ValueNone
+                let! result = executeIntrospectionQuery ValueNone
+                let response = result |> toResponse
+                return Results.Ok response
+    
+            elif isMultipartRequest request then
+
+                /// Look for a header specifying the boundary string used in a multi-part form submission and return the string if it exists.
+                let getMultipartRequestBoundary (req : HttpRequest) =
+                    req.Headers.GetCommaSeparatedValues("Content-Type")
+                    |> Seq.map (fun v -> v.TrimStart())
+                    |> Seq.tryFind (fun v -> v.Contains("boundary"))
+                    |> Option.map (fun v -> v.Remove(0, v.IndexOf('=') + 1))
+                    |> Option.map (fun v -> v.Trim('"'))
+
+                match getMultipartRequestBoundary request with
+                | Some boundary ->
+
+                    let copyBodyToMemory (req : HttpRequest) =
+                        let ms = new MemoryStream(4096)
+                        req.Body.CopyTo(ms)
+                        ms.Position <- 0L
+                        ms
+
+                    return! task {
+                        use ms = copyBodyToMemory request
+                        let reader = MultipartReader(boundary, ms)
+                        let! multiRequest = reader |> MultipartRequest.read ctx.RequestAborted
+                        let results =
+                            multiRequest.Operations
+                            |> List.map (fun op ->
+
+                                let resultTask = executeOperation op
+                                let result = resultTask.Result  // TODO: Am I doing this right?
+
+                                let addRequestType (requestType : string) (response : GQLExecutionResult) =
+                                    let mapper (content : GQLResponseContent) =
+                                        let dataMapper (data : Output) : Output =
+                                            let data = data |> Seq.map (|KeyValue|) |> Map.ofSeq
+                                            upcast data.Add("requestType", requestType)
+                                        match content with
+                                        | GQLResponseContent.Direct (data, errors) -> Direct (dataMapper data, errors)
+                                        | GQLResponseContent.Deferred (data, errors, deferred) -> Deferred (dataMapper data, errors, deferred)
+                                        | _ -> content
+                                    { Content = mapper response.Content; DocumentId = response.DocumentId; Metadata = response.Metadata }
+
+                                result |> addRequestType "Multipart"
+                            )
+
+                        match results with
+                        | [ result ] ->
+                            let response = result |> toResponse
+                            return Results.Ok response
+
+                        | results ->
+                            let result = JArray.FromObject(List.map json results).ToString()
+                            return! okWithStr result next ctx
+                    }
+                | None ->
+                    let problem = GQLProblemDetails.Create ("Invalid multipart request header: missing boundary value.")
+                    let response = GQLResponse.RequestError (0, [problem])
+                    return Results.BadRequest response
+
             else
-                return! executeOperation ()
+                let! gqlRequest = ctx.BindJsonAsync<GQLRequestContent> ()
+                let! result = executeOperation gqlRequest
+                let response = result |> toResponse
+                return Results.Ok response
+
         }
         |> ofTaskIResult ctx
 
