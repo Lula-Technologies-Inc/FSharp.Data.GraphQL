@@ -200,8 +200,10 @@ module HttpHandlers =
             task {
                 let! result =
                     match ast with
-                    | ValueNone -> Schema.executor.AsyncExecute (IntrospectionQuery.IntrospectionQuery)
-                    | ValueSome ast -> Schema.executor.AsyncExecute (ast)
+                    | ValueNone ->
+                        Schema.executor.AsyncExecute (IntrospectionQuery.Definition)
+                    | ValueSome ast ->
+                        Schema.executor.AsyncExecute (ast)
 
                 return result
             }
