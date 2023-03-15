@@ -16,7 +16,7 @@
     <Compile Include="..\..\samples\star-wars-api\JSON.fs" Link="JSON.fs" />
     <Compile Include="CustomSchemaTypes.fs" />
     <Compile Include="Schema.fs" />
-    <Compile Include="MultipartRequest.fs" />
+    <Compile Include="..\..\samples\star-wars-api\MultipartRequest.fs" Link="MultipartRequest.fs" />
     <Compile Include="..\..\samples\star-wars-api\WebSocketMessages.fs" Link="WebSocketMessages.fs" />
     <Compile Include="..\..\samples\star-wars-api\JsonConverters.fs" Link="JsonConverters.fs" />
     <Compile Include="..\..\samples\star-wars-api\WebSocketMiddleware.fs" Link="WebSocketMiddleware.fs" />
