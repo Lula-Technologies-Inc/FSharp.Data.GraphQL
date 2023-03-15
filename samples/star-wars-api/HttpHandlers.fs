@@ -18,10 +18,6 @@ open Giraffe
 
 type HttpHandler = HttpFunc -> HttpContext -> HttpFuncResult
 
-type private GQLRequestContent =
-    { Query : string
-      OperationName : Skippable<string>
-      Variables : Skippable<ImmutableDictionary<string, JsonElement>> }
 
 module HttpHandlers =
 
