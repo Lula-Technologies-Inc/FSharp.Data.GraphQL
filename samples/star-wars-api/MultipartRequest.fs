@@ -8,8 +8,8 @@ open Newtonsoft.Json
 open Newtonsoft.Json.Linq
 
 open FSharp.Data.GraphQL.Ast
+open FSharp.Data.GraphQL.Uploading
 open FSharp.Data.GraphQL
-open FSharp.Data.GraphQL.Samples.StarWarsApi
 
 
 [<Struct>]
@@ -33,6 +33,7 @@ type GraphQLMultipartSection =
         | Form x -> x.Name
         | File x -> x.Name
 
+
 /// A GraphQL operation request.
 // Use GQLRequestContent from HttpHandler (need to move it so it's internal, and include it here)
 //type Operation =
@@ -50,8 +51,8 @@ type MultipartRequest =
 
 /// Contains tools for working with GraphQL multipart requests.
 module MultipartRequest =
-    let private parseOperations (operations: Operation list) (map : IDictionary<string, string>) (files : IDictionary<string, File>) =
-        let mapOperation (operationIndex : int option) (operation : Operation) =
+    let private parseOperations (operations: GQLRequestContent list) (map : IDictionary<string, string>) (files : IDictionary<string, File>) =
+        let mapOperation (operationIndex : int option) (operation : GQLRequestContent) =
             let findFile (varName : string) (varValue : obj) =
                 let tryPickMultipleFilesFromMap (length : int) (varName : string) =
                     Seq.init length (fun ix ->
@@ -159,8 +160,8 @@ module MultipartRequest =
                 do! readNextSection ()
             let operations =
                 match JToken.Parse(operations) with
-                | :? JArray as ops -> ops.ToObject<Operation list>(jsonSerializer)
-                | :? JObject as op -> [ op.ToObject<Operation>(jsonSerializer) ]
+                | :? JArray as ops -> ops.ToObject<GQLRequestContent list>(jsonSerializer)
+                | :? JObject as op -> [ op.ToObject<GQLRequestContent>(jsonSerializer) ]
                 | _ -> failwith "Unexpected operations value."
             return { Operations = parseOperations operations map files }
         }

@@ -5,6 +5,10 @@ open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.IntegrationTests.Server
 
+open FSharp.Data.GraphQL.Samples.StarWarsApi
+open FSharp.Data.GraphQL.Uploading
+
+
 type Root =
     { RequestId : System.Guid }
 
@@ -24,12 +28,6 @@ type UploadedFile =
     { Name : string
       ContentType : string
       ContentAsText : string }
-
-type UploadRequest =
-    { Single : File
-      Multiple : File list
-      NullableMultiple : File list option
-      NullableMultipleNullable : File option list option }
 
 type UploadResponse =
     { Single : UploadedFile

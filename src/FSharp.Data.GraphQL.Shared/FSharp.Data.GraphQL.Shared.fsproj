@@ -41,6 +41,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="MimeTypes.fs" />
     <Compile Include="Diagnostics.fs" />
     <Compile Include="ObjAndStructConversions.fs" />
     <Compile Include="ValidationTypes.fs" />
@@ -58,5 +59,6 @@
     <Compile Include="Parser.fs" />
     <Compile Include="TypeSystemExtensions.fs" />
     <Compile Include="AstExtensions.fs" />
+    <Compile Include="Upload.fs" />
   </ItemGroup>
 </Project>

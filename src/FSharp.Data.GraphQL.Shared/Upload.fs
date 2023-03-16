@@ -1,11 +1,12 @@
 // The MIT License (MIT)
 // Copyright (c) 2016 Bazinga Technologies Inc
-
-namespace FSharp.Data.GraphQL
+module FSharp.Data.GraphQL.Uploading
 
 open System
 open System.IO
-open FSharp.Data.GraphQL.Client
+open System.Text
+open System.Collections.Generic
+
 
 /// The base type for all GraphQLProvider upload types.
 /// Upload types are used in GraphQL multipart request spec, mostly for file uploading features.
@@ -38,3 +39,28 @@ type Upload (stream : Stream, fileName : string, ?contentType : string, ?ownsStr
 
     interface IDisposable with
         member x.Dispose() = if x.OwnsStream then x.Stream.Dispose()
+
+
+type File =
+    { Name : string
+      ContentType : string
+      Content : string }
+    member x.MakeUpload() =
+        let bytes = Encoding.UTF8.GetBytes(x.Content)
+        new Upload(bytes, x.Name, x.ContentType)
+    static member FromDictionary(dict : IDictionary<string, obj>) =
+        { Name = downcast dict.["Name"]
+          ContentType = downcast dict.["ContentType"]
+          Content = downcast dict.["ContentAsText"] }
+
+type FilesRequest =
+    { Single : File
+      Multiple : File []
+      NullableMultiple : File [] option
+      NullableMultipleNullable : File option [] option }
+
+type UploadRequest =
+    { Single : File
+      Multiple : File list
+      NullableMultiple : File list option
+      NullableMultipleNullable : File option list option }
