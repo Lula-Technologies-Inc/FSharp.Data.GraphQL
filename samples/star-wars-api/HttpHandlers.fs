@@ -336,6 +336,7 @@ module HttpHandlers =
                             return Results.Ok response
 
                         | results ->
+                            // TODO: Not sure what to do here.  We have multiple results?  But GQLResponse can only hold one??
                             let result = JArray.FromObject(List.map json results).ToString()
                             return! okWithStr result next ctx
                     }
