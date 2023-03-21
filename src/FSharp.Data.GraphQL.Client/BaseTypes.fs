@@ -5,12 +5,14 @@ namespace FSharp.Data.GraphQL
 
 open System
 open System.Globalization
+open System.Text
+open System.ComponentModel
 open FSharp.Core
+
 open FSharp.Data.GraphQL.Client
 open FSharp.Data.GraphQL.Client.ReflectionPatterns
 open FSharp.Data.GraphQL.Types.Introspection
-open System.Text
-open System.ComponentModel
+open FSharp.Data.GraphQL.Uploading
 
 /// Contains information about a field on the query.
 type SchemaFieldInfo =

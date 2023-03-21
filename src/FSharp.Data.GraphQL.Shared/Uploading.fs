@@ -1,11 +1,13 @@
 // The MIT License (MIT)
 // Copyright (c) 2016 Bazinga Technologies Inc
-module FSharp.Data.GraphQL.Uploading
+namespace FSharp.Data.GraphQL.Uploading
 
 open System
 open System.IO
 open System.Text
 open System.Collections.Generic
+
+open FSharp.Data.GraphQL
 
 
 /// The base type for all GraphQLProvider upload types.
@@ -52,12 +54,6 @@ type File =
         { Name = downcast dict.["Name"]
           ContentType = downcast dict.["ContentType"]
           Content = downcast dict.["ContentAsText"] }
-
-type FilesRequest =
-    { Single : File
-      Multiple : File []
-      NullableMultiple : File [] option
-      NullableMultipleNullable : File option [] option }
 
 type UploadRequest =
     { Single : File

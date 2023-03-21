@@ -3,13 +3,15 @@ namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 open System
 open System.Collections
 open System.Collections.Generic
+open System.Collections.Immutable
+open System.Text.Json
+open System.Text.Json.Nodes
+open System.Text.Json.Serialization
 open Microsoft.AspNetCore.WebUtilities
-open Newtonsoft.Json
-open Newtonsoft.Json.Linq
 
+open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Ast
 open FSharp.Data.GraphQL.Uploading
-open FSharp.Data.GraphQL
 
 
 [<Struct>]

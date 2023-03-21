@@ -336,9 +336,8 @@ module HttpHandlers =
                             return Results.Ok response
 
                         | results ->
-                            // TODO: Not sure what to do here.  We have multiple results?  But GQLResponse can only hold one??
-                            let result = JArray.FromObject(List.map json results).ToString()
-                            return! okWithStr result next ctx
+                            let response = results |> List.map toResponse
+                            return Results.Ok response
                     }
                 | None ->
                     let problem = GQLProblemDetails.Create ("Invalid multipart request header: missing boundary value.")

@@ -6,11 +6,13 @@ namespace FSharp.Data.GraphQL
 open System
 open System.Collections.Generic
 open System.Net.Http
-open FSharp.Data.GraphQL
-open FSharp.Data.GraphQL.Client
 open System.Text
-open ReflectionPatterns
 open System.Threading
+
+open FSharp.Data.GraphQL
+open FSharp.Data.GraphQL.Uploading
+open FSharp.Data.GraphQL.Client
+open FSharp.Data.GraphQL.Client.ReflectionPatterns
 
 /// A requrest object for making GraphQL calls using the GraphQL client module.
 type GraphQLRequest  =

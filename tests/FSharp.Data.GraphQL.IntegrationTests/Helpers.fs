@@ -17,21 +17,3 @@ let hasItems (seq : seq<'T>) =
     Assert.True(Seq.length seq > 0)
 
 let map fn x = fn x
-
-type File =
-    { Name : string
-      ContentType : string
-      Content : string }
-    member x.MakeUpload() =
-        let bytes = Encoding.UTF8.GetBytes(x.Content)
-        new Upload(bytes, x.Name, x.ContentType)
-    static member FromDictionary(dict : IDictionary<string, obj>) =
-        { Name = downcast dict.["Name"]
-          ContentType = downcast dict.["ContentType"]
-          Content = downcast dict.["ContentAsText"] }
-
-type FilesRequest =
-    { Single : File
-      Multiple : File []
-      NullableMultiple : File [] option
-      NullableMultipleNullable : File option [] option }
