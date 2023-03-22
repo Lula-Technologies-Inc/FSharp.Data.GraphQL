@@ -10,9 +10,9 @@ open System.Text.Json.Serialization
 open Microsoft.AspNetCore.WebUtilities
 
 open FSharp.Data.GraphQL
+open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Ast
 open FSharp.Data.GraphQL.Uploading
-
 
 [<Struct>]
 type GraphQLMultipartSection =
@@ -43,7 +43,7 @@ type GraphQLMultipartSection =
 type MultipartRequest =
       /// Contains the list of operations of this request.
       /// If the request is not batched, then the single operation will be inside this list as a singleton.
-    { Operations : GQLRequestContent list
+    { Operation : GQLRequestContent
       FileMap : IDictionary<string, string>
       Files : IDictionary<string, File>
     }
@@ -51,7 +51,7 @@ type MultipartRequest =
 /// Contains tools for working with GraphQL multipart requests, used in HttpHandler and Execution.
 module MultipartRequest =
 
-    let private findFile (fileMap : IDictionary<string, string>) (files : IDictionary<string, File>) (operationIndex : int option) (operation : GQLRequestContent) (varName : string) (varValue : JsonElement) =
+    let private findFile (fileMap : IDictionary<string, string>) (files : IDictionary<string, File>) (vardefs: VarDef list) (varName : string) (varValue : JsonElement) =
         let tryPickMultipleFilesFromMap (length : int) (varName : string) =
             Seq.init length (fun ix ->
                 match fileMap.TryGetValue(sprintf "%s.%i" varName ix) with
@@ -88,12 +88,7 @@ module MultipartRequest =
             | NamedType tname -> tname = "Upload" || tname = "UploadRequest"
             | ListType t | NonNullType t -> isUpload t
 
-        let ast = Parser.parse operation.Query
-        let vardefs =
-            ast.Definitions
-            |> List.choose (function OperationDefinition def -> Some def.VariableDefinitions | _ -> None)
-            |> List.collect id
-        let vardef = vardefs |> List.find (fun x -> x.VariableName = varName)
+        let vardef = vardefs |> List.find (fun x -> x.Variableame = varName)
         if not (isUpload vardef.Type)
         then varValue
         else
@@ -101,39 +96,26 @@ module MultipartRequest =
             | _ when varValue.ValueKind = JsonValueKind.Object ->
                 let request = JsonSerializer.Deserialize<UploadRequest>(varValue)
                 //let request = jreq.Deserialize<UploadRequest>(jsonSerializer)
-                let varName =
-                    match operationIndex with
-                    | Some operationIndex -> sprintf "%i.variables.%s" operationIndex varName
-                    | None -> sprintf "variables.%s" varName
+                let varName = sprintf "variables.%s" varName
                 pickFileRequestFromMap request varName |> box
             | _ when varValue.ValueKind = JsonValueKind.Array ->
                 varValue.EnumerateArray()
                 |> Seq.cast<obj>
                 |> Seq.mapi (fun valueIndex _ ->
-                    let varName =
-                        match operationIndex with
-                        | Some operationIndex -> sprintf "%i.variables.%s.%i" operationIndex varName valueIndex
-                        | None -> sprintf "variables.%s.%i" varName valueIndex
+                    let varName = sprintf "variables.%s.%i" varName valueIndex
                     tryPickSingleFileFromMap varName |> Option.map box |> Option.toObj)
                 |> box
             | _ ->
-                let varName =
-                    match operationIndex with
-                    | Some operationIndex -> sprintf "%i.variables.%s" operationIndex varName
-                    | None -> sprintf "variables.%s" varName
+                let varName = sprintf "variables.%s" varName
                 tryPickSingleFileFromMap varName |> Option.map box |> Option.toObj
 
-    let private mapOperation (fileMap : IDictionary<string, string>) (files : IDictionary<string, File>) (operationIndex : int option) (operation : GQLRequestContent) =
+    let coerceFiles (fileMap : IDictionary<string, string>) (files : IDictionary<string, File>) (vardefs: VarDef list) =
         let varsMaybe = operation.Variables |> Skippable.toOption
         let varsMaybeWithFiles = varsMaybe |> Option.map (fun vars ->
-                vars |> Seq.map (fun k -> (k.Key, (findFile fileMap files operationIndex operation k.Key k.Value))) |> Map.ofSeq |> ImmutableDictionary.ToImmutableDictionary
+                vars |> Seq.map (fun k -> (k.Key, (findFile fileMap files vardefs k.Key k.Value))) |> Map.ofSeq |> ImmutableDictionary.ToImmutableDictionary
             )
         { operation with Variables = varsMaybeWithFiles |> Skippable.ofOption }
 
-    let coerceFiles (fileMap : IDictionary<string, string>) (files : IDictionary<string, File>) (variables: VarDef list) =
-        match operations with
-        | [ operation ] -> [ mapOperation fileMap files None operation ]
-        | operations -> operations |> List.mapi (fun ix operation -> mapOperation fileMap files (Some ix) operation)
 
     /// Reads a GraphQL multipart request from a MultipartReader.
     let read cancellationToken (reader : MultipartReader) : Threading.Tasks.Task<MultipartRequest> =
@@ -144,7 +126,7 @@ module MultipartRequest =
                     let! next = reader.ReadNextSectionAsync cancellationToken
                     section <- GraphQLMultipartSection.FromSection(next)
                 }
-            let mutable operations : string = null
+            let mutable operation : GQLRequestContent option = None
             let mutable map : IDictionary<string, string> = null
             let files = Dictionary<string, File>()
             do! readNextSection ()
@@ -153,8 +135,8 @@ module MultipartRequest =
                 | FormSection section ->
                     let! value = section.GetValueAsync()
                     match section.Name with
-                    | "operations" ->
-                        operations <- value
+                    | "operation" ->
+                        operation <- Some (JsonSerializer.Deserialize<GQLRequestContent>(value))
                     | "map" ->
                         map <- JsonSerializer.Deserialize<Map<string, string list>>(value)
                                |> Seq.map (fun kvp -> kvp.Value.Head, kvp.Key)
@@ -167,13 +149,10 @@ module MultipartRequest =
                     let value = { File.Name = section.FileName; ContentType = section.Section.ContentType; Content = stream }
                     files.Add(section.Name, value)
                 do! readNextSection ()
-            let operations =
-                match JToken.Parse(operations) with
-                | :? JArray as ops -> ops.ToObject<GQLRequestContent list>(jsonSerializer)
-                | :? JObject as op -> [ op.ToObject<GQLRequestContent>(jsonSerializer) ]
-                | _ -> failwith "Unexpected operations value."
+            if operation.IsNone then
+                failwith "Multipart form submission does not contain an operation."
 
-            return {    Operations = operations
+            return {    Operation = operation.Value
                         FileMap = map
                         Files = files }
         }

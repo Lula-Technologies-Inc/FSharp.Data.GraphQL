@@ -311,35 +311,24 @@ module HttpHandlers =
                         use ms = copyBodyToMemory request
                         let reader = MultipartReader(boundary, ms)
                         let! multiRequest = reader |> MultipartRequest.read ctx.RequestAborted
-                        let results =
-                            multiRequest.Operations
-                            |> List.map (fun op ->
+                        let op = multiRequest.Operation
 
-                                let resultTask = executeOperation op (Some multiRequest.FileMap) (Some multiRequest.Files)
-                                let result = resultTask.Result  // TODO: Am I doing this right?
+                        let resultTask = executeOperation op (Some multiRequest.FileMap) (Some multiRequest.Files)
+                        let result = resultTask.Result  // TODO: Am I doing this right?
 
-                                let addRequestType (requestType : string) (response : GQLExecutionResult) =
-                                    let mapper (content : GQLResponseContent) =
-                                        let dataMapper (data : Output) : Output =
-                                            let data = data |> Seq.map (|KeyValue|) |> Map.ofSeq
-                                            upcast data.Add("requestType", requestType)
-                                        match content with
-                                        | GQLResponseContent.Direct (data, errors) -> Direct (dataMapper data, errors)
-                                        | GQLResponseContent.Deferred (data, errors, deferred) -> Deferred (dataMapper data, errors, deferred)
-                                        | _ -> content
-                                    { Content = mapper response.Content; DocumentId = response.DocumentId; Metadata = response.Metadata }
+                        let addRequestType (requestType : string) (response : GQLExecutionResult) =
+                            let mapper (content : GQLResponseContent) =
+                                let dataMapper (data : Output) : Output =
+                                    let data = data |> Seq.map (|KeyValue|) |> Map.ofSeq
+                                    upcast data.Add("requestType", requestType)
+                                match content with
+                                | GQLResponseContent.Direct (data, errors) -> Direct (dataMapper data, errors)
+                                | GQLResponseContent.Deferred (data, errors, deferred) -> Deferred (dataMapper data, errors, deferred)
+                                | _ -> content
+                            { Content = mapper response.Content; DocumentId = response.DocumentId; Metadata = response.Metadata }
 
-                                result |> addRequestType "Multipart"
-                            )
-
-                        match results with
-                        | [ result ] ->
-                            let response = result |> toResponse
-                            return Results.Ok response
-
-                        | results ->
-                            let response = results |> List.map toResponse
-                            return Results.Ok response
+                        let response = result |> addRequestType "Multipart" |> toResponse
+                        return Results.Ok response
                     }
                 | None ->
                     let problem = GQLProblemDetails.Create ("Invalid multipart request header: missing boundary value.")

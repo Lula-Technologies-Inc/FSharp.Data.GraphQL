@@ -165,7 +165,7 @@ module GraphQLClient =
                        "variables", variables |]
                     |> JsonValue.Record
                 let content = new StringContent(json.ToString(JsonSaveOptions.DisableFormatting))
-                content.Headers.Add("Content-Disposition", "form-data; name=\"operations\"")
+                content.Headers.Add("Content-Disposition", "form-data; name=\"operation\"")
                 content
             content.Add(operationContent)
 
