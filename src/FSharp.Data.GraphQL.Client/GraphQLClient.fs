@@ -121,17 +121,30 @@ module GraphQLClient =
             let boundary = "----GraphQLProviderBoundary" + (Guid.NewGuid().ToString("N"))
             let content = new MultipartContent("form-data", boundary)
             let files =
-                let rec tryMapFileVariable (name: string, value : obj) =
+                /// Examine a variable value object, walking down through dictionary and enumerable types, looking for Uploads.
+                /// Return any Uploads that have been found as a list, with each Upload paired to a string identifying its
+                /// location in whatever structure was encountered.
+                let rec tryMapFileVariable (name: string, value : obj) : (string * Upload) array option =
                     match value with
                     | null | :? string -> None
-                    | :? Upload as x -> Some [|name, x|]
+                    | :? Upload as x ->
+                        // Easiest case: If it's an Upload, return it with the current name.
+                        Some [|name, x|]
                     | OptionValue x ->
+                        // Call this again if x is Some, wrapping the result in Some.
                         x |> Option.bind (fun x -> tryMapFileVariable (name, x))
                     | :? IDictionary<string, obj> as x ->
+                        // We could also be supplied a dictionary of names-to-objects, in which case we reform it as a list,
+                        // combining the variable name with each dictionary key, "name.key", to form a new key.
+                        // (Note, some other variable with a dot in its name might cause a collision.
+                        //  So don't put dots in your variable names, mmmkay?  It's against the GraphQL spec anyway.)
                         x |> Seq.collect (fun kvp -> tryMapFileVariable (name + "." + (kvp.Key.FirstCharLower()), kvp.Value) |> Option.defaultValue [||])
                           |> Array.ofSeq
                           |> Some
                     | EnumerableValue x ->
+                        // The last allowed form is enumerable,
+                        // in which case we reform it as a list (like above), combining the variable name with
+                        // the index in the list.
                         x |> Array.mapi (fun ix x -> tryMapFileVariable (name + "." + (ix.ToString()), x))
                           |> Array.collect (Option.defaultValue [||])
                           |> Some
@@ -155,12 +168,21 @@ module GraphQLClient =
                 content.Headers.Add("Content-Disposition", "form-data; name=\"operations\"")
                 content
             content.Add(operationContent)
+
+            // Make two things derived from the files array:
+            // 1. A series of HttpContent sections, each containing an Upload, with the section name set to the index in the array.
+            // 2. A JSON record, full of properties, one per Upload:
+            //    Each property is named with the index in the array,
+            //    and each property value is the variable reference string.
+            //    This forms a dictionary that matches HttpContent sections to variable reference strings.
+
             let mapContent =
                 let files =
                     files
                     |> Array.mapi (fun ix (name, _) -> ix.ToString(), JsonValue.Array [| JsonValue.String ("variables." + name) |])
                     |> JsonValue.Record
                 let content = new StringContent(files.ToString(JsonSaveOptions.DisableFormatting))
+                // Pulled out by MultipartRequest, server-side.
                 content.Headers.Add("Content-Disposition", "form-data; name=\"map\"")
                 content
             content.Add(mapContent)
@@ -171,6 +193,7 @@ module GraphQLClient =
                     content.Headers.Add("Content-Disposition", sprintf "form-data; name=\"%i\"; filename=\"%s\"" ix value.FileName)
                     content.Headers.Add("Content-Type", value.ContentType)
                     content)
+
             fileContents |> Array.iter content.Add
             let! result = postAsync invoker request.ServerUrl request.HttpHeaders content
             return result
