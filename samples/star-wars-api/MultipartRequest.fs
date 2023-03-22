@@ -50,10 +50,11 @@ type MultipartRequest =
 
 /// Contains tools for working with GraphQL multipart requests, used in HttpHandler and Execution.
 module MultipartRequest =
-    let findFile (map : IDictionary<string, string>) (files : IDictionary<string, File>) (operationIndex : int option) (operation : GQLRequestContent) (varName : string) (varValue : JsonElement) =
+
+    let private findFile (fileMap : IDictionary<string, string>) (files : IDictionary<string, File>) (operationIndex : int option) (operation : GQLRequestContent) (varName : string) (varValue : JsonElement) =
         let tryPickMultipleFilesFromMap (length : int) (varName : string) =
             Seq.init length (fun ix ->
-                match map.TryGetValue(sprintf "%s.%i" varName ix) with
+                match fileMap.TryGetValue(sprintf "%s.%i" varName ix) with
                 | (true, v) -> Some v
                 | _ -> None)
             |> Seq.map (fun key ->
@@ -64,16 +65,16 @@ module MultipartRequest =
                 |> Option.flatten)
             |> List.ofSeq
         let pickMultipleFilesFromMap (length : int) (varName : string) =
-            Seq.init length (fun ix -> map.[sprintf "%s.%i" varName ix])
+            Seq.init length (fun ix -> fileMap.[sprintf "%s.%i" varName ix])
             |> Seq.map (fun key -> files.[key])
             |> List.ofSeq
         let tryPickSingleFileFromMap varName =
-            let found = map |> Seq.choose (fun kvp -> if kvp.Key = varName then Some files.[kvp.Value] else None) |> List.ofSeq
+            let found = fileMap |> Seq.choose (fun kvp -> if kvp.Key = varName then Some files.[kvp.Value] else None) |> List.ofSeq
             match found with
             | [x] -> Some x
             | _ -> None
         let pickSingleFileFromMap varName =
-            map
+            fileMap
             |> Seq.choose (fun kvp -> if kvp.Key = varName then Some files.[kvp.Value] else None)
             |> Seq.exactlyOne
         let pickFileRequestFromMap (request : UploadRequest) varName =
@@ -122,17 +123,17 @@ module MultipartRequest =
                     | None -> sprintf "variables.%s" varName
                 tryPickSingleFileFromMap varName |> Option.map box |> Option.toObj
 
-    let mapOperation (map : IDictionary<string, string>) (files : IDictionary<string, File>) (operationIndex : int option) (operation : GQLRequestContent) =
+    let private mapOperation (fileMap : IDictionary<string, string>) (files : IDictionary<string, File>) (operationIndex : int option) (operation : GQLRequestContent) =
         let varsMaybe = operation.Variables |> Skippable.toOption
         let varsMaybeWithFiles = varsMaybe |> Option.map (fun vars ->
-                vars |> Seq.map (fun k -> (k.Key, (findFile map files operationIndex operation k.Key k.Value))) |> Map.ofSeq |> ImmutableDictionary.ToImmutableDictionary
+                vars |> Seq.map (fun k -> (k.Key, (findFile fileMap files operationIndex operation k.Key k.Value))) |> Map.ofSeq |> ImmutableDictionary.ToImmutableDictionary
             )
         { operation with Variables = varsMaybeWithFiles |> Skippable.ofOption }
 
-    let private parseOperations (operations: GQLRequestContent list) (map : IDictionary<string, string>) (files : IDictionary<string, File>) : GQLRequestContent list =
+    let coerceFiles (fileMap : IDictionary<string, string>) (files : IDictionary<string, File>) (variables: VarDef list) =
         match operations with
-        | [ operation ] -> [ mapOperation map files None operation ]
-        | operations -> operations |> List.mapi (fun ix operation -> mapOperation map files (Some ix) operation)
+        | [ operation ] -> [ mapOperation fileMap files None operation ]
+        | operations -> operations |> List.mapi (fun ix operation -> mapOperation fileMap files (Some ix) operation)
 
     /// Reads a GraphQL multipart request from a MultipartReader.
     let read cancellationToken (reader : MultipartReader) : Threading.Tasks.Task<MultipartRequest> =
