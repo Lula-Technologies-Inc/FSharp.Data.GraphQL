@@ -37,21 +37,18 @@ type GraphQLMultipartSection =
 
 
 /// A GraphQL operation request.
-// Use GQLRequestContent from HttpHandler (need to move it so it's internal, and include it here)
-//type Operation =
-//      /// Contains the query used in this operation.
-//    { Query : string
-//      /// Contains variables used by this operation.
-//      Variables : Map<string, obj> option }
 
 /// <summary> A GrahpQL request using multipart request specification. </summary>
 /// <remarks> For more information, see https://github.com/jaydenseric/graphql-multipart-request-spec. </remarks>
 type MultipartRequest =
       /// Contains the list of operations of this request.
       /// If the request is not batched, then the single operation will be inside this list as a singleton.
-    { Operations : GQLRequestContent list }
+    { Operations : GQLRequestContent list
+      FileMap : IDictionary<string, string>
+      Files : IDictionary<string, File>
+    }
 
-/// Contains tools for working with GraphQL multipart requests.
+/// Contains tools for working with GraphQL multipart requests, used in HttpHandler and Execution.
 module MultipartRequest =
     let findFile (map : IDictionary<string, string>) (files : IDictionary<string, File>) (operationIndex : int option) (operation : GQLRequestContent) (varName : string) (varValue : JsonElement) =
         let tryPickMultipleFilesFromMap (length : int) (varName : string) =
@@ -174,5 +171,8 @@ module MultipartRequest =
                 | :? JArray as ops -> ops.ToObject<GQLRequestContent list>(jsonSerializer)
                 | :? JObject as op -> [ op.ToObject<GQLRequestContent>(jsonSerializer) ]
                 | _ -> failwith "Unexpected operations value."
-            return { Operations = parseOperations operations map files }
+
+            return {    Operations = operations
+                        FileMap = map
+                        Files = files }
         }
