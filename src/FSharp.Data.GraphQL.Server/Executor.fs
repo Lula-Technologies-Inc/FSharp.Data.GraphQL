@@ -6,6 +6,7 @@ open System.Text.Json
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Execution
 open FSharp.Data.GraphQL.Ast
+open FSharp.Data.GraphQL.Uploading
 open FSharp.Data.GraphQL.Validation
 open FSharp.Data.GraphQL.Parser
 open FSharp.Data.GraphQL.Planning
@@ -109,7 +110,15 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
                 try
                     let errors = System.Collections.Concurrent.ConcurrentBag<exn>()
                     let root = data |> Option.map box |> Option.toObj
-                    let variables = coerceVariables executionPlan.Variables variables
+
+                    let variables =
+                        // Follow a special code path if we have files and a fileMap.
+                        match files, fileMap with
+                        | Some f, Some m ->
+                            coerceVariablesWithFiles executionPlan.Variables variables f m
+                        | _ ->
+                            coerceVariables executionPlan.Variables variables
+
                     let executionCtx =
                         { Schema = schema
                           ExecutionPlan = executionPlan
