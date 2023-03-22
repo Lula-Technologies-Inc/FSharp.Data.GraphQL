@@ -1,6 +1,7 @@
 namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
 open System
+open System.Collections.Generic
 open System.Collections.Immutable
 open System.IO
 open System.Text.Json
@@ -15,6 +16,7 @@ open Microsoft.Extensions.Options
 
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Ast
+open FSharp.Data.GraphQL.Uploading
 open Giraffe
 
 type HttpHandler = HttpFunc -> HttpContext -> HttpFuncResult
@@ -209,7 +211,7 @@ module HttpHandlers =
             }
 
         /// Execute the operation for given request
-        let executeOperation (operation : GQLRequestContent) =
+        let executeOperation (operation : GQLRequestContent) (fileMap : IDictionary<string, string> option) (files : IDictionary<string, File> option) =
             task {
                 let query = operation.Query
                 let operationName = operation.OperationName |> Skippable.toOption
@@ -236,7 +238,7 @@ module HttpHandlers =
 
                     let root = { RequestId = System.Guid.NewGuid () }
                     let executionPlan = Schema.executor.CreateExecutionPlan (ast, ?operationName = operationName)
-                    let! result = Schema.executor.AsyncExecute (executionPlan, root, ?variables = variables)
+                    let! result = Schema.executor.AsyncExecute (executionPlan, root, ?variables = variables, ?fileMap = fileMap, ?files = files)
                     return result
             }
 
@@ -313,7 +315,7 @@ module HttpHandlers =
                             multiRequest.Operations
                             |> List.map (fun op ->
 
-                                let resultTask = executeOperation op
+                                let resultTask = executeOperation op (Some multiRequest.FileMap) (Some multiRequest.Files)
                                 let result = resultTask.Result  // TODO: Am I doing this right?
 
                                 let addRequestType (requestType : string) (response : GQLExecutionResult) =
@@ -346,7 +348,7 @@ module HttpHandlers =
 
             else
                 let! gqlRequest = ctx.BindJsonAsync<GQLRequestContent> ()
-                let! result = executeOperation gqlRequest
+                let! result = executeOperation gqlRequest None None
                 let response = result |> toResponse
                 return Results.Ok response
 
