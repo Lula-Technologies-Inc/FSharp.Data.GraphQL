@@ -10,6 +10,12 @@ open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Types.Patterns
 
+
+type GQLRequestContent =
+    { Query : string
+      OperationName : Skippable<string>
+      Variables : Skippable<ImmutableDictionary<string, JsonElement>> }
+
 type private GQLEditableRequestContent =
     { Query : string
       OperationName : string voption

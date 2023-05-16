@@ -1,11 +1,16 @@
-namespace FSharp.Data.GraphQL.IntegrationTests.Server
+namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
 open System.Text
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
+open FSharp.Data.GraphQL.IntegrationTests.Server
+
+open FSharp.Data.GraphQL.Samples.StarWarsApi
+open FSharp.Data.GraphQL.Uploading
+
 
 type Root =
-    { RequestId : string }
+    { RequestId : System.Guid }
 
 type InputField =
     { String : string
@@ -24,12 +29,6 @@ type UploadedFile =
       ContentType : string
       ContentAsText : string }
 
-type UploadRequest =
-    { Single : File
-      Multiple : File list
-      NullableMultiple : File list option
-      NullableMultipleNullable : File option list option }
-
 type UploadResponse =
     { Single : UploadedFile
       Multiple : UploadedFile list
@@ -46,7 +45,7 @@ module Schema =
                   Define.Input("stringOption", Nullable StringType, description = "A string option value.")
                   Define.Input("intOption", Nullable IntType, description = "An integer option value.")
                   Define.Input("uri", UriType, description = "An URI value.")
-                  Define.Input("guid", GuidType, description = "A Guid value.") ])
+                  Define.Input("guid", IDType, description = "A Guid value.") ])
 
     let InputType =
         Define.InputObject<Input>(
@@ -66,7 +65,7 @@ module Schema =
                   Define.AutoField("stringOption", Nullable StringType, description = "A string option value.")
                   Define.AutoField("intOption", Nullable IntType, description = "An integer option value.")
                   Define.AutoField("uri", UriType, description = "An URI value.")
-                  Define.AutoField("guid", GuidType, description = "A Guid value.")
+                  Define.AutoField("guid", IDType, description = "A Guid value.")
                   Define.Field("deprecated", StringType, resolve = (fun _ x -> x.String), description = "A string value through a deprecated field.", deprecationReason = "This field is deprecated.", args = []) ])
 
     let UploadedFileType =
@@ -83,10 +82,10 @@ module Schema =
             name = "UploadRequest",
             description = "Request for uploading files in several different forms.",
             fields =
-                [ Define.Input("single", Upload, description = "A single file upload.")
-                  Define.Input("multiple", ListOf Upload, description = "Multiple file uploads.")
-                  Define.Input("nullableMultiple", Nullable (ListOf Upload), description = "Optional list of multiple file uploads.")
-                  Define.Input("nullableMultipleNullable", Nullable (ListOf (Nullable Upload)), description = "Optional list of multiple optional file uploads.") ])
+                [ Define.Input("single", UploadType, description = "A single file upload.")
+                  Define.Input("multiple", ListOf UploadType, description = "Multiple file uploads.")
+                  Define.Input("nullableMultiple", Nullable (ListOf UploadType), description = "Optional list of multiple file uploads.")
+                  Define.Input("nullableMultipleNullable", Nullable (ListOf (Nullable UploadType)), description = "Optional list of multiple optional file uploads.") ])
 
     let UploadResponseType =
         Define.Object<UploadResponse>(
@@ -136,31 +135,31 @@ module Schema =
                     name = "singleUpload",
                     typedef = UploadedFileType,
                     description = "Uploads a single file to the server and get it back.",
-                    args = [ Define.Input("file", Upload, description = "The file to be uploaded.") ],
+                    args = [ Define.Input("file", UploadType, description = "The file to be uploaded.") ],
                     resolve = fun ctx _ -> mapUploadToOutput (ctx.Arg("file")))
                   Define.Field(
                     name = "nullableSingleUpload",
                     typedef = Nullable UploadedFileType,
                     description = "Uploads (maybe) a single file to the server and get it back (maybe).",
-                    args = [ Define.Input("file", Nullable Upload, description = "The file to be uploaded.") ],
+                    args = [ Define.Input("file", Nullable UploadType, description = "The file to be uploaded.") ],
                     resolve = fun ctx _ -> ctx.TryArg("file") |> Option.flatten |> Option.map mapUploadToOutput)
                   Define.Field(
                     name = "multipleUpload",
                     typedef = ListOf UploadedFileType,
                     description = "Uploads a list of files to the server and get them back.",
-                    args = [ Define.Input("files", ListOf Upload, description = "The files to upload.") ],
+                    args = [ Define.Input("files", ListOf UploadType, description = "The files to upload.") ],
                     resolve = fun ctx _ -> ctx.Arg("files") |> Seq.map mapUploadToOutput)
                   Define.Field(
                     name = "nullableMultipleUpload",
                     typedef = Nullable (ListOf UploadedFileType),
                     description = "Uploads (maybe) a list of files to the server and get them back (maybe).",
-                    args = [ Define.Input("files", Nullable (ListOf Upload), description = "The files to upload.") ],
+                    args = [ Define.Input("files", Nullable (ListOf UploadType), description = "The files to upload.") ],
                     resolve = fun ctx _ -> ctx.TryArg("files") |> Option.flatten |> Option.map (Seq.map mapUploadToOutput))
                   Define.Field(
                     name = "nullableMultipleNullableUpload",
                     typedef = Nullable (ListOf (Nullable UploadedFileType)),
                     description = "Uploads (maybe) a list of files (maybe) to the server and get them back (maybe).",
-                    args = [ Define.Input("files", Nullable (ListOf (Nullable Upload)), description = "The files to upload.") ],
+                    args = [ Define.Input("files", Nullable (ListOf (Nullable UploadType)), description = "The files to upload.") ],
                     resolve = fun ctx _ -> ctx.TryArg("files") |> Option.flatten |> Option.map (Seq.map (Option.map mapUploadToOutput)))
                   Define.Field(
                     name = "uploadRequest",

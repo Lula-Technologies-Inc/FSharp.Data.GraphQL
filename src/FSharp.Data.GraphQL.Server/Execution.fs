@@ -658,6 +658,16 @@ let internal coerceVariables (variables: VarDef list) (vars: ImmutableDictionary
     // TODO: Use FSharp.Collection.Immutable
     |> fun builder -> builder.ToImmutable()
 
+let internal coerceVariablesWithFiles (variables: VarDef list) (vars: ImmutableDictionary<string, JsonElement>) (files: ImmutableDictionary<string, File>) (fileMap: ImmutableDictionary<string, string>) =
+    variables
+    |> List.fold (fun (acc : ImmutableDictionary<string, obj>.Builder) vardef -> acc.Add(vardef.Name, (coerceVariable vardef vars)); acc)
+                (ImmutableDictionary.CreateBuilder<string, obj>())
+
+    |> MultipartRequest.coerceFiles map files
+
+    // TODO: Use FSharp.Collection.Immutable
+    |> fun builder -> builder.ToImmutable()
+
 let internal executeOperation (ctx : ExecutionContext) : AsyncVal<GQLExecutionResult> =
     let resultSet =
         ctx.ExecutionPlan.Fields

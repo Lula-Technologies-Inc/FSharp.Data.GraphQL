@@ -6,6 +6,7 @@ open System.Text.Json
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Execution
 open FSharp.Data.GraphQL.Ast
+open FSharp.Data.GraphQL.Uploading
 open FSharp.Data.GraphQL.Validation
 open FSharp.Data.GraphQL.Parser
 open FSharp.Data.GraphQL.Planning
@@ -95,7 +96,7 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
         | Success -> ()
         | ValidationError errors -> raise (GraphQLException (System.String.Join("\n", errors)))
 
-    let eval (executionPlan: ExecutionPlan, data: 'Root option, variables: ImmutableDictionary<string, JsonElement>): Async<GQLExecutionResult> =
+    let eval (executionPlan: ExecutionPlan, data: 'Root option, variables: ImmutableDictionary<string, JsonElement>, files : ImmutableDictionary<string, File> option, fileMap : ImmutableDictionary<string, string> option): Async<GQLExecutionResult> =
         let documentId = executionPlan.DocumentId
         let prepareOutput res =
             match res with
@@ -109,7 +110,15 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
                 try
                     let errors = System.Collections.Concurrent.ConcurrentBag<exn>()
                     let root = data |> Option.map box |> Option.toObj
-                    let variables = coerceVariables executionPlan.Variables variables
+
+                    let variables =
+                        // Follow a special code path if we have files and a fileMap.
+                        match files, fileMap with
+                        | Some f, Some m ->
+                            coerceVariablesWithFiles executionPlan.Variables variables f m
+                        | _ ->
+                            coerceVariables executionPlan.Variables variables
+
                     let executionCtx =
                         { Schema = schema
                           ExecutionPlan = executionPlan
@@ -130,9 +139,9 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
                 return GQLExecutionResult.Invalid(documentId, errors, executionPlan.Metadata)
         }
 
-    let execute (executionPlan: ExecutionPlan, data: 'Root option, variables: ImmutableDictionary<string, JsonElement> option) =
+    let execute (executionPlan: ExecutionPlan, data: 'Root option, variables: ImmutableDictionary<string, JsonElement> option, files : ImmutableDictionary<string, File> option, fileMap : ImmutableDictionary<string, string> option) =
         let variables = defaultArg variables ImmutableDictionary.Empty
-        eval (executionPlan, data, variables)
+        eval (executionPlan, data, variables, files, fileMap)
 
     let createExecutionPlan (ast: Document, operationName: string option, meta : Metadata) =
         match findOperation ast operationName with
@@ -179,7 +188,7 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
     /// <param name="data">Optional object provided as a root to all top level field resolvers</param>
     /// <param name="variables">Map of all variable values provided by the client request.</param>
     member _.AsyncExecute(executionPlan: ExecutionPlan, ?data: 'Root, ?variables: ImmutableDictionary<string, JsonElement>): Async<GQLExecutionResult> =
-        execute (executionPlan, data, variables)
+        execute (executionPlan, data, variables, None, None)
 
     /// <summary>
     /// Asynchronously executes parsed GraphQL query AST. Returned value is a readonly dictionary consisting of following top level entries:
@@ -192,10 +201,12 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
     /// <param name="variables">Map of all variable values provided by the client request.</param>
     /// <param name="operationName">In case when document consists of many operations, this field describes which of them to execute.</param>
     /// <param name="meta">A plain dictionary of metadata that can be used through execution customizations.</param>
-    member _.AsyncExecute(ast: Document, ?data: 'Root, ?variables: ImmutableDictionary<string, JsonElement>, ?operationName: string, ?meta : Metadata): Async<GQLExecutionResult> =
+    /// <param name="files">A dictionary of Files, organized by index numbers correlating to those in fileMap.</param>
+    /// <param name="fileMap">A dictionary used to resolve File index numbers to the variables that should contain Files.</param>
+    member _.AsyncExecute(ast: Document, ?data: 'Root, ?variables: ImmutableDictionary<string, JsonElement>, ?operationName: string, ?meta : Metadata, ?files : ImmutableDictionary<string, File>, ?fileMap : ImmutableDictionary<string, string>): Async<GQLExecutionResult> =
         let meta = defaultArg meta Metadata.Empty
         let executionPlan = createExecutionPlan (ast, operationName, meta)
-        execute (executionPlan, data, variables)
+        execute (executionPlan, data, variables, files, fileMap)
 
     /// <summary>
     /// Asynchronously executes unparsed GraphQL query AST. Returned value is a readonly dictionary consisting of following top level entries:
@@ -212,7 +223,7 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
         let meta = defaultArg meta Metadata.Empty
         let ast = parse queryOrMutation
         let executionPlan = createExecutionPlan (ast, operationName, meta)
-        execute (executionPlan, data, variables)
+        execute (executionPlan, data, variables, None, None)
 
     /// Creates an execution plan for provided GraphQL document AST without
     /// executing it. This is useful in cases when you have the same query executed

@@ -1,4 +1,4 @@
-﻿module internal FSharp.Data.GraphQL.Client.MimeTypes
+﻿module internal FSharp.Data.GraphQL.MimeTypes
 
 open System.Collections.Generic
 open System.Collections.ObjectModel

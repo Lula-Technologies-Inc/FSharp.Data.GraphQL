@@ -1,5 +1,6 @@
 namespace FSharp.Data.GraphQL.Samples.StarWarsApi
 
+open System
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Types
 open FSharp.Data.GraphQL.Server.Relay
@@ -35,7 +36,7 @@ type Planet =
         x.IsMoon <- b
         x
 
-type Root = { RequestId : string }
+type Root = { RequestId : Guid }
 
 type Character =
     | Human of Human
@@ -238,7 +239,7 @@ module Schema =
             name = "Root",
             description = "The Root type to be passed to all our resolvers.",
             isTypeOf = (fun o -> o :? Root),
-            fieldsFn = fun () -> [ Define.Field ("requestId", StringType, "The ID of the client.", (fun _ (r : Root) -> r.RequestId)) ]
+            fieldsFn = fun () -> [ Define.Field ("requestId", GuidType, "The ID of the client.", (fun _ (r : Root) -> r.RequestId)) ]
         )
 
     let Query =

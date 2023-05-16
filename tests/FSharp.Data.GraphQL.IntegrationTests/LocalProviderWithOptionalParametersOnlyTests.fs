@@ -3,6 +3,8 @@
 open Xunit
 open Helpers
 open FSharp.Data.GraphQL
+open FSharp.Data.GraphQL.Uploading
+
 
 let [<Literal>] ServerUrl = "http://localhost:8085"
 let [<Literal>] EmptyGuidAsString = "00000000-0000-0000-0000-000000000000"
@@ -463,7 +465,7 @@ module UploadRequestOperation =
 
     type Request = Provider.Types.UploadRequest
 
-    let validateResult (request : FilesRequest) (result : Operation.OperationResult) =
+    let validateResult (request : UploadRequest) (result : Operation.OperationResult) =
         result.CustomData.ContainsKey("requestType") |> equals true
         result.CustomData.["requestType"] |> equals (box "Multipart")
         result.Data.IsSome |> equals true

@@ -4,11 +4,13 @@
 namespace FSharp.Data.GraphQL.Client
 
 open System
-open Microsoft.FSharp.Reflection
 open System.Reflection
 open System.Collections.Generic
 open System.Globalization
+open Microsoft.FSharp.Reflection
+
 open FSharp.Data.GraphQL
+open FSharp.Data.GraphQL.Uploading
 open FSharp.Data.GraphQL.Client.ReflectionPatterns
 
 // TODO: Remove and use FSharp.SystemTextJson

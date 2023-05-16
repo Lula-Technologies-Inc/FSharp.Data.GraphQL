@@ -8,16 +8,18 @@ open System.Collections
 open System.Collections.Generic
 open System.Reflection
 open FSharp.Core
+open Microsoft.FSharp.Quotations
+open Microsoft.FSharp.Reflection
+open ProviderImplementation.ProvidedTypes
+
 open FSharp.Data.GraphQL
-open FSharp.Data.GraphQL.Client
-open FSharp.Data.GraphQL.Client.ReflectionPatterns
 open FSharp.Data.GraphQL.Ast
 open FSharp.Data.GraphQL.Ast.Extensions
 open FSharp.Data.GraphQL.Types.Introspection
 open FSharp.Data.GraphQL.Validation
-open ProviderImplementation.ProvidedTypes
-open Microsoft.FSharp.Quotations
-open Microsoft.FSharp.Reflection
+open FSharp.Data.GraphQL.Uploading
+open FSharp.Data.GraphQL.Client
+open FSharp.Data.GraphQL.Client.ReflectionPatterns
 
 type internal FieldStringPath = string list
 

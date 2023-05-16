@@ -26,8 +26,8 @@ module SchemaDefinitions =
         | _ -> None
 
     /// GraphQL type for binary data stream representation.
-    let Upload : ScalarDefinition<File> =
+    let UploadType : ScalarDefinition<File> =
         { Name = "Upload"
-          Description = Some "The `Upload` type represents an upload of binary data."
+          Description = Some "The `UploadType` type represents an upload of binary data."
           CoerceInput = coerceUploadInput
           CoerceOutput = coerceUploadValue }
