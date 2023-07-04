@@ -60,15 +60,15 @@ let resolveRoot ctx () =
     result
 
 let linqArgs =
-    [ Define.Input("id", IDType<int>)
-      Define.Input("skip", IntType)
-      Define.Input("take", IntType)
-      Define.Input("orderBy", StringType)
-      Define.Input("orderByDesc", StringType)
-      Define.Input("first", IntType)
-      Define.Input("last", IntType)
-      Define.Input("before", StringType)
-      Define.Input("after", StringType) ]
+    [ Define.Input("id", Nullable IDType<int>)
+      Define.Input("skip", Nullable IntType)
+      Define.Input("take", Nullable IntType)
+      Define.Input("orderBy", Nullable StringType)
+      Define.Input("orderByDesc", Nullable StringType)
+      Define.Input("first", Nullable IntType)
+      Define.Input("last", Nullable IntType)
+      Define.Input("before", Nullable StringType)
+      Define.Input("after", Nullable StringType) ]
 
 let schema =
     Schema(Define.Object("RootQuery",
