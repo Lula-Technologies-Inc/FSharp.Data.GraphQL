@@ -44,7 +44,7 @@ let ast = parse """{
             a
             b
             c
-            d(input : true )
+            d(input : true)
         }
     }"""
 
@@ -91,11 +91,14 @@ let executionMiddleware (ctx : ExecutionContext) (next : ExecutionContext -> Asy
         ctx.ExecutionPlan.Operation.SelectionSet
         |> List.map (fun x -> match x with Field f -> Field { f with SelectionSet = chooserS f.SelectionSet } | _ -> x)
     let fields =
-        ctx.ExecutionPlan.Fields
+        ctx.FieldDefs
         |> List.map (fun x -> { x with Ast = { x.Ast with SelectionSet = chooserS x.Ast.SelectionSet }; Kind = chooserK x.Kind })
     let operation = { ctx.ExecutionPlan.Operation with SelectionSet = selection }
-    let plan = { ctx.ExecutionPlan with Operation = operation; Fields = fields  }
-    let ctx' = { ctx with ExecutionPlan = plan }
+    let plan =
+        { ctx.ExecutionPlan with
+            Operation = operation;
+            Result = ctx.ExecutionPlan.Result |> Result.map(fun res -> { res with Fields = fields } ) }
+    let ctx' = { ctx with ExecutionPlan = plan; FieldDefs = fields }
     next ctx'
 
 let middleware =

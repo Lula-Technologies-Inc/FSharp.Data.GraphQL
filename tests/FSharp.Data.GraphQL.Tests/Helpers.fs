@@ -156,3 +156,16 @@ module Observer =
 
     let createWithCallback (onReceive : TestObserver<'T> -> 'T -> unit) (sub : IObservable<'T>) =
         new TestObserver<'T>(sub, onReceive)
+
+open System.Runtime.CompilerServices
+open FSharp.Data.GraphQL.Types
+
+[<Extension>]
+type ExecutorExtensions =
+
+    [<Extension>]
+    static member CreateExecutionPlanOrFail (executor: Executor<'Root>, queryOrMutation: string, ?operationName: string, ?meta : Metadata) =
+        let plan = executor.CreateExecutionPlan(queryOrMutation, ?operationName = operationName, ?meta = meta)
+        match plan.Result with
+        | Ok planResult -> planResult
+        | Error errs -> fail "invalid query"; Unchecked.defaultof<_>

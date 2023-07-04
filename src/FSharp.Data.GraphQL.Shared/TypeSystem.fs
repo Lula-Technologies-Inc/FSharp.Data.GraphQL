@@ -8,6 +8,7 @@ open System.Collections
 open System.Collections.Concurrent
 open System.Collections.Generic
 open System.Collections.Immutable
+open System.Text.Json
 open FSharp.Data.GraphQL
 open FSharp.Data.GraphQL.Validation
 open FSharp.Data.GraphQL.Ast
@@ -16,7 +17,6 @@ open FSharp.Quotations
 open FSharp.Quotations.Patterns
 open FSharp.Reflection
 open FSharp.Linq.RuntimeHelpers
-open System.Text.Json
 
 /// Enum describing parts of the GraphQL query document AST, where
 /// related directive is valid to be used.
@@ -624,7 +624,7 @@ and PlanningContext =
       Operation : OperationDefinition
       DocumentId : int
       Metadata : Metadata
-      ValidationResult : ValidationResult<AstError> }
+      ValidationResult : ValidationResult<GQLProblemDetails> }
 
 /// A function type, which upon execution returns true if related field should
 /// be included in result set for the query.
@@ -828,20 +828,24 @@ and ExecutionPlan =
       DocumentId : int
       /// AST defintion of current operation.
       Operation : OperationDefinition
-      /// Definition of the root type (either query or mutation) used by the
-      /// current operation.
-      RootDef : ObjectDef
       /// Execution strategy applied on the underlying object's fields.
       Strategy : ExecutionStrategy
       /// List of fields of top level query/mutation object to be resolved.
+      Result : Result<ExecutionPlanResult, GQLProblemDetails list>
+      /// A dictionary of metadata associated with custom operations on the planning of this plan.
+      Metadata : Metadata }
+
+and [<Struct>] ExecutionPlanResult =
+    { /// Definition of the root type (either query or mutation) used by the
+      /// current operation.
+      RootDef : ObjectDef
+      /// List of fields of top level query/mutation object to be resolved.
       Fields : ExecutionInfo list
       /// List of variables defined within executed query.
-      Variables : VarDef list
-      /// A dictionary of metadata associated with custom operations on the planning of this plan.
-      Metadata : Metadata
-      /// The validation result for the document being processed.
-      ValidationResult : ValidationResult<AstError> }
+      Variables : VarDef list }
+
     member x.Item with get(id) = x.Fields |> List.find (fun f -> f.Identifier = id)
+
 
 /// Execution context of the current GraphQL operation. It contains a full
 /// knowledge about which fields will be accessed, what types are associated
@@ -853,6 +857,13 @@ and ExecutionContext =
       RootValue : obj
       /// Execution plan describing, what fiedls are going to be resolved.
       ExecutionPlan : ExecutionPlan
+      /// Definition of the root type (either query or mutation) used by the
+      /// current operation.
+      RootDef : ObjectDef
+      /// List of fields of top level query/mutation object to be resolved.
+      FieldDefs : ExecutionInfo list
+      /// List of variables defined within executed query.
+      VariableDefs : VarDef list
       /// Collection of variables provided to execute current operation.
       Variables : ImmutableDictionary<string, obj>
       /// Collection of errors that occurred while executing current operation.

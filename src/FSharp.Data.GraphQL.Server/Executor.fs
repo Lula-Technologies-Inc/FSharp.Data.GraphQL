@@ -104,15 +104,18 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
             | Deferred (data, errors, deferred) -> GQLExecutionResult.Deferred (documentId, data, errors, deferred, res.Metadata)
             | Stream (stream) -> GQLExecutionResult.Stream (documentId, stream, res.Metadata)
         async {
-            match executionPlan.ValidationResult with
-            | Validation.Success ->
+            match executionPlan.Result with
+            | Ok { Fields = fields; Variables = variableDefs; RootDef = rootDef } ->
                 try
                     let errors = System.Collections.Concurrent.ConcurrentBag<exn>()
                     let root = data |> Option.map box |> Option.toObj
-                    let variables = coerceVariables executionPlan.Variables variables
+                    let variables = coerceVariables variableDefs variables
                     let executionCtx =
                         { Schema = schema
                           ExecutionPlan = executionPlan
+                          RootDef = rootDef
+                          FieldDefs = fields
+                          VariableDefs = variableDefs
                           RootValue = root
                           Variables = variables
                           Errors = errors
@@ -123,10 +126,7 @@ type Executor<'Root>(schema: ISchema<'Root>, middlewares : IExecutorMiddleware s
                 with
                 | :? GraphQLException as ex -> return prepareOutput(GQLExecutionResult.Error (documentId, ex, executionPlan.Metadata))
                 | ex -> return prepareOutput (GQLExecutionResult.Error(documentId, ex.ToString(), executionPlan.Metadata)) // TODO: Handle better
-            | Validation.ValidationError errors ->
-                let errors = errors |> List.map (fun err ->
-                    let path = err.Path |> Option.defaultValue []
-                    GQLProblemDetails.Create (err.Message, path))
+            | Error errors ->
                 return GQLExecutionResult.Invalid(documentId, errors, executionPlan.Metadata)
         }
 

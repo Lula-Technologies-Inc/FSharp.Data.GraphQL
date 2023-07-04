@@ -83,7 +83,7 @@ let schemaProcessor = Executor(schema)
 
 [<Fact>]
 let ``LINQ interpreter works with auto-fields``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people {
             firstName
@@ -101,7 +101,7 @@ let ``LINQ interpreter works with auto-fields``() =
 
 [<Fact>]
 let ``LINQ interpreter works with fields with defined resolvers``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people {
             lastName
@@ -119,7 +119,7 @@ let ``LINQ interpreter works with fields with defined resolvers``() =
 
 [<Fact>]
 let ``LINQ interpreter works with fields referring to nested property resolver``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people {
             contact { email }
@@ -137,7 +137,7 @@ let ``LINQ interpreter works with fields referring to nested property resolver``
 
 [<Fact>]
 let ``LINQ interpreter works with nested collections``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people {
             friends { email }
@@ -156,7 +156,7 @@ let ``LINQ interpreter works with nested collections``() =
 
 [<Fact>]
 let ``LINQ interpreter works with nested property getters in resolve function``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people {
             email
@@ -175,7 +175,7 @@ let ``LINQ interpreter works with nested property getters in resolve function``(
 
 [<Fact>]
 let ``LINQ interpreter resolves multiple properties from complex resolvers``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people {
             fullName
@@ -195,7 +195,7 @@ let ``LINQ interpreter resolves multiple properties from complex resolvers``() =
 
 [<Fact>]
 let ``LINQ interpreter works with id arg``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people(id: 2) {
             id
@@ -215,7 +215,7 @@ let ``LINQ interpreter works with id arg``() =
 
 [<Fact>]
 let ``LINQ interpreter works with skip arg``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people(skip: 2) {
             id
@@ -235,7 +235,7 @@ let ``LINQ interpreter works with skip arg``() =
 
 [<Fact>]
 let ``LINQ interpreter works with take arg``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people(take: 2) {
             id
@@ -252,7 +252,7 @@ let ``LINQ interpreter works with take arg``() =
 
 [<Fact>]
 let ``LINQ interpreter works with orderBy arg``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people(orderBy: "firstName") {
             id
@@ -270,7 +270,7 @@ let ``LINQ interpreter works with orderBy arg``() =
 
 [<Fact>]
 let ``LINQ interpreter works with orderByDesc arg``() =
-    let plan = schemaProcessor.CreateExecutionPlan """
+    let plan = schemaProcessor.CreateExecutionPlanOrFail """
     query Example {
         people(orderByDesc: "firstName") {
             id
