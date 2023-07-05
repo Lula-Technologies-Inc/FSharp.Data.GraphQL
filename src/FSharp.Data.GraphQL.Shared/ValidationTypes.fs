@@ -2,6 +2,7 @@ namespace FSharp.Data.GraphQL.Validation
 
 open System.Text.Json.Serialization
 open FSharp.Data.GraphQL
+open FsToolkit.ErrorHandling
 
 type ValidationResult<'Err> =
     | Success
@@ -20,6 +21,14 @@ module ValidationResult =
     let collectResults (f : 'T -> ValidationResult<'Err>) (xs : 'T seq) : ValidationResult<'Err> =
         // TODO: Use PSeq
         Seq.fold (fun acc t -> acc @@ (f t)) Success xs
+
+    type ResultBuilder with
+
+        member inline _.Source(result: ValidationResult<'error>) : Result<unit, 'error list> =
+            match result with
+            | Success -> Ok ()
+            | ValidationError errors -> Error errors
+
 
 [<AbstractClass; Sealed>]
 type AstError =

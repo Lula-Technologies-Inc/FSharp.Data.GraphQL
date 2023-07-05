@@ -7,7 +7,6 @@ open System
 open System.Linq
 open System.Collections.Generic
 open Xunit
-open FSharp.Data.GraphQL.Execution
 open System.Threading
 open FSharp.Data.GraphQL
 
@@ -165,7 +164,6 @@ type ExecutorExtensions =
 
     [<Extension>]
     static member CreateExecutionPlanOrFail (executor: Executor<'Root>, queryOrMutation: string, ?operationName: string, ?meta : Metadata) =
-        let plan = executor.CreateExecutionPlan(queryOrMutation, ?operationName = operationName, ?meta = meta)
-        match plan.Result with
-        | Ok planResult -> planResult
-        | Error errs -> fail "invalid query"; Unchecked.defaultof<_>
+        match executor.CreateExecutionPlan(queryOrMutation, ?operationName = operationName, ?meta = meta) with
+        | Ok executionPlan -> executionPlan
+        | Error _ -> fail "invalid query"; Unchecked.defaultof<_>

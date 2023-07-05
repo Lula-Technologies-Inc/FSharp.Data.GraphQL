@@ -359,25 +359,19 @@ let internal planOperation (ctx: PlanningContext) : ExecutionPlan =
         Definition = Unchecked.defaultof<FieldDef>
         Include = incl
         IsNullable = false }
-    let result =
-        match ctx.ValidationResult with
-        | Success ->
-            let resolvedInfo = planSelection ctx ctx.Operation.SelectionSet rootInfo (ref [])
-            let fields =
-                match resolvedInfo.Kind with
-                | SelectFields tf -> tf
-                | x -> failwith $"Expected SelectFields Kind, but got %A{x}"
-            let variables = planVariables ctx.Schema ctx.Operation
-            struct (fields, variables)
-            |> Ok
-        | ValidationError errs -> Error errs
-    let withRootDef rootDef result : Result<ExecutionPlanResult, GQLProblemDetails list> =
-        result |> Result.map (fun struct (fields, variables) -> { Fields = fields; Variables = variables; RootDef = rootDef })
+    let resolvedInfo = planSelection ctx ctx.Operation.SelectionSet rootInfo (ref [])
+    let fields =
+        match resolvedInfo.Kind with
+        | SelectFields tf -> tf
+        | x -> failwith $"Expected SelectFields Kind, but got %A{x}"
+    let variables = planVariables ctx.Schema ctx.Operation
     match ctx.Operation.OperationType with
     | Query ->
         { DocumentId = ctx.DocumentId
           Operation = ctx.Operation
-          Result = (result |> withRootDef ctx.Schema.Query)
+          RootDef = ctx.Schema.Query
+          Fields = fields
+          Variables = variables
           Strategy = Parallel
           Metadata = ctx.Metadata }
     | Mutation ->
@@ -385,36 +379,24 @@ let internal planOperation (ctx: PlanningContext) : ExecutionPlan =
         | Some mutationDef ->
             { DocumentId = ctx.DocumentId
               Operation = ctx.Operation
-              Result = (result |> withRootDef mutationDef)
+              RootDef = mutationDef
+              Fields = fields
+              Variables = variables
               Strategy = Sequential
               Metadata = ctx.Metadata }
         | None ->
-            let result =
-                result
-                |> Result.map (fun struct (fields, variables) -> { Fields = fields; Variables = variables; RootDef = Unchecked.defaultof<_> })
-                |> Result.mapError (fun errs ->
-                    (GQLProblemDetails.Create "Tried to execute a GraphQL mutation on schema with no mutation type defined") :: errs)
-            { DocumentId = ctx.DocumentId
-              Operation = ctx.Operation
-              Result = result
-              Strategy = Sequential
-              Metadata = ctx.Metadata }
+            Debug.Fail "Must be prevented by validation"
+            failwith "Tried to execute a GraphQL mutation on schema with no mutation type defined"
     | Subscription ->
         match ctx.Schema.Subscription with
         | Some subscriptionDef ->
             { DocumentId = ctx.DocumentId
               Operation = ctx.Operation
-              Result = (result |> withRootDef (subscriptionDef :> ObjectDef))
+              RootDef = subscriptionDef
+              Fields = fields
+              Variables = variables
               Strategy = Sequential
               Metadata = ctx.Metadata }
         | None ->
-            let result =
-                result
-                |> Result.map (fun struct (fields, variables) -> { Fields = fields; Variables = variables; RootDef = Unchecked.defaultof<_> })
-                |> Result.mapError (fun errs ->
-                    (GQLProblemDetails.Create "Tried to execute a GraphQL subscription on schema with no mutation type defined") :: errs)
-            { DocumentId = ctx.DocumentId
-              Operation = ctx.Operation
-              Result = result
-              Strategy = Sequential
-              Metadata = ctx.Metadata }
+            Debug.Fail "Must be prevented by validation"
+            failwith "Tried to execute a GraphQL subscription on schema with no mutation type defined"

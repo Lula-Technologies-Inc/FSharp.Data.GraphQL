@@ -623,8 +623,7 @@ and PlanningContext =
       Document : Document
       Operation : OperationDefinition
       DocumentId : int
-      Metadata : Metadata
-      ValidationResult : ValidationResult<GQLProblemDetails> }
+      Metadata : Metadata }
 
 /// A function type, which upon execution returns true if related field should
 /// be included in result set for the query.
@@ -828,21 +827,17 @@ and ExecutionPlan =
       DocumentId : int
       /// AST defintion of current operation.
       Operation : OperationDefinition
+      /// Definition of the root type (either query or mutation) used by the
+      /// current operation.
+      RootDef : ObjectDef
       /// Execution strategy applied on the underlying object's fields.
       Strategy : ExecutionStrategy
       /// List of fields of top level query/mutation object to be resolved.
-      Result : Result<ExecutionPlanResult, GQLProblemDetails list>
-      /// A dictionary of metadata associated with custom operations on the planning of this plan.
-      Metadata : Metadata }
-
-and [<Struct>] ExecutionPlanResult =
-    { /// Definition of the root type (either query or mutation) used by the
-      /// current operation.
-      RootDef : ObjectDef
-      /// List of fields of top level query/mutation object to be resolved.
       Fields : ExecutionInfo list
       /// List of variables defined within executed query.
-      Variables : VarDef list }
+      Variables : VarDef list
+      /// A dictionary of metadata associated with custom operations on the planning of this plan.
+      Metadata : Metadata }
 
     member x.Item with get(id) = x.Fields |> List.find (fun f -> f.Identifier = id)
 

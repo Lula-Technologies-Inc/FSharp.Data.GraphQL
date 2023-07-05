@@ -54,16 +54,16 @@ type GraphQLQueryConverter<'a>(executor : Executor<'a>, replacements: Map<string
     override __.Read(reader, _, options) =
 
         let request = JsonSerializer.Deserialize<GQLEditableRequestContent>(&reader, options)
-        let plan =
+        let result =
             let query = request.Query
             match meta with
             | Some meta -> executor.CreateExecutionPlan(query, meta = meta)
             | None -> executor.CreateExecutionPlan(query)
-        match plan.Result with
-        | Result.Error errors -> failwith (String.concat Environment.NewLine (errors |> Seq.map (fun error -> error.Message)))
-        | Ok { Variables = varDefs } ->
-            match varDefs with
-            | [] -> { ExecutionPlan = plan; Variables = ImmutableDictionary.Empty }
+        match result with
+        | Result.Error struct (_, errors) -> failwith (String.concat Environment.NewLine (errors |> Seq.map (fun error -> error.Message)))
+        | Ok executionPlan ->
+            match executionPlan.Variables with
+            | [] -> { ExecutionPlan = executionPlan; Variables = ImmutableDictionary.Empty }
             | vs ->
                 // For multipart requests, we need to replace some variables
                 let vars = request.Variables.Value
@@ -87,7 +87,7 @@ type GraphQLQueryConverter<'a>(executor : Executor<'a>, replacements: Map<string
                             | None, _ -> failwithf "Variable %s has no default value and is missing!" vdef.Name
                         acc)
                         (ImmutableDictionary.CreateBuilder<string, JsonElement>())
-                { ExecutionPlan = plan; Variables = variables.ToImmutable() }
+                { ExecutionPlan = executionPlan; Variables = variables.ToImmutable() }
 
 open System
 open System.Collections.Generic
