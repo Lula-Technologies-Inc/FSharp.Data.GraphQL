@@ -776,7 +776,7 @@ module internal Provider =
                                             errors
                                             |> List.map (fun err ->
                                                 match err.Path with
-                                                | Include path -> sprintf "%s Path: %A" err.Message path
+                                                | Include path -> $"%s{err.Message} Path: %A{path}"
                                                 | Skip -> err.Message)
                                             |> List.reduce (fun x y -> x + Environment.NewLine + y)
                                     match validationResult with
