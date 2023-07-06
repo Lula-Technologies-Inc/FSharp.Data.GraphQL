@@ -852,13 +852,6 @@ and ExecutionContext =
       RootValue : obj
       /// Execution plan describing, what fiedls are going to be resolved.
       ExecutionPlan : ExecutionPlan
-      /// Definition of the root type (either query or mutation) used by the
-      /// current operation.
-      RootDef : ObjectDef
-      /// List of fields of top level query/mutation object to be resolved.
-      FieldDefs : ExecutionInfo list
-      /// List of variables defined within executed query.
-      VariableDefs : VarDef list
       /// Collection of variables provided to execute current operation.
       Variables : ImmutableDictionary<string, obj>
       /// Collection of errors that occurred while executing current operation.
