@@ -91,7 +91,7 @@ let executionMiddleware (ctx : ExecutionContext) (next : ExecutionContext -> Asy
         ctx.ExecutionPlan.Operation.SelectionSet
         |> List.map (fun x -> match x with Field f -> Field { f with SelectionSet = chooserS f.SelectionSet } | _ -> x)
     let fields =
-        ctx.FieldDefs
+        ctx.ExecutionPlan.Fields
         |> List.map (fun x -> { x with Ast = { x.Ast with SelectionSet = chooserS x.Ast.SelectionSet }; Kind = chooserK x.Kind })
     let operation = { ctx.ExecutionPlan.Operation with SelectionSet = selection }
     let plan = { ctx.ExecutionPlan with Operation = operation; Fields = fields }
