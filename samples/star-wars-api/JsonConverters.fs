@@ -61,33 +61,31 @@ type GraphQLQueryConverter<'a>(executor : Executor<'a>, replacements: Map<string
             | None -> executor.CreateExecutionPlan(query)
         match result with
         | Result.Error struct (_, errors) -> failwith (String.concat Environment.NewLine (errors |> Seq.map (fun error -> error.Message)))
+        | Ok executionPlan when executionPlan.Variables  = [] -> { ExecutionPlan = executionPlan; Variables = ImmutableDictionary.Empty }
         | Ok executionPlan ->
-            match executionPlan.Variables with
-            | [] -> { ExecutionPlan = executionPlan; Variables = ImmutableDictionary.Empty }
-            | vs ->
-                // For multipart requests, we need to replace some variables
-                let vars = request.Variables.Value
-                // TODO: Implement JSON path
-                Map.iter (fun path rep ->
-                              vars.Remove path |> ignore
-                              vars.Add(path, JsonNode.Create rep))
-                         replacements
-                //Map.iter(fun path rep -> vars.SelectToken(path).Replace(JObject.FromObject(rep))) replacements
-                let variables =
-                    vs
-                    |> List.fold (fun (acc: ImmutableDictionary<string, JsonElement>.Builder) (vdef: VarDef) ->
-                        match vars.TryGetPropertyValue vdef.Name with
-                        | true, jsonNode ->
-                            let jsonElement = jsonNode.AsJsonElement()
-                            acc.Add (vdef.Name, jsonElement)
-                        | false, _  ->
-                            match vdef.DefaultValue, vdef.TypeDef with
-                            | Some _, _ -> ()
-                            | _, Nullable _ -> ()
-                            | None, _ -> failwithf "Variable %s has no default value and is missing!" vdef.Name
-                        acc)
-                        (ImmutableDictionary.CreateBuilder<string, JsonElement>())
-                { ExecutionPlan = executionPlan; Variables = variables.ToImmutable() }
+            // For multipart requests, we need to replace some variables
+            let vars = request.Variables.Value
+            // TODO: Implement JSON path
+            Map.iter (fun path rep ->
+                          vars.Remove path |> ignore
+                          vars.Add(path, JsonNode.Create rep))
+                     replacements
+            //Map.iter(fun path rep -> vars.SelectToken(path).Replace(JObject.FromObject(rep))) replacements
+            let variables =
+                executionPlan.Variables
+                |> List.fold (fun (acc: ImmutableDictionary<string, JsonElement>.Builder) (vdef: VarDef) ->
+                    match vars.TryGetPropertyValue vdef.Name with
+                    | true, jsonNode ->
+                        let jsonElement = jsonNode.AsJsonElement()
+                        acc.Add (vdef.Name, jsonElement)
+                    | false, _  ->
+                        match vdef.DefaultValue, vdef.TypeDef with
+                        | Some _, _ -> ()
+                        | _, Nullable _ -> ()
+                        | None, _ -> failwithf "Variable %s has no default value and is missing!" vdef.Name
+                    acc)
+                    (ImmutableDictionary.CreateBuilder<string, JsonElement>())
+            { ExecutionPlan = executionPlan; Variables = variables.ToImmutable() }
 
 open System
 open System.Collections.Generic
