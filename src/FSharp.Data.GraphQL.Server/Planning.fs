@@ -365,8 +365,8 @@ let internal planOperation (ctx: PlanningContext) : ExecutionPlan =
         | SelectFields tf -> tf
         | x -> failwith $"Expected SelectFields Kind, but got %A{x}"
     let variables = planVariables ctx.Schema ctx.Operation
-    match ctx.Operation.OperationType with
-    | Query ->
+
+    let executionPlan =
         { DocumentId = ctx.DocumentId
           Operation = ctx.Operation
           RootDef = ctx.Schema.Query
@@ -374,29 +374,23 @@ let internal planOperation (ctx: PlanningContext) : ExecutionPlan =
           Variables = variables
           Strategy = Parallel
           Metadata = ctx.Metadata }
+    match ctx.Operation.OperationType with
+    | Query -> executionPlan
     | Mutation ->
         match ctx.Schema.Mutation with
         | Some mutationDef ->
-            { DocumentId = ctx.DocumentId
-              Operation = ctx.Operation
-              RootDef = mutationDef
-              Fields = fields
-              Variables = variables
-              Strategy = Sequential
-              Metadata = ctx.Metadata }
+            { executionPlan with
+                RootDef = mutationDef
+                Strategy = Sequential }
         | None ->
             Debug.Fail "Must be prevented by validation"
             failwith "Tried to execute a GraphQL mutation on schema with no mutation type defined"
     | Subscription ->
         match ctx.Schema.Subscription with
         | Some subscriptionDef ->
-            { DocumentId = ctx.DocumentId
-              Operation = ctx.Operation
-              RootDef = subscriptionDef
-              Fields = fields
-              Variables = variables
-              Strategy = Sequential
-              Metadata = ctx.Metadata }
+            { executionPlan with
+                RootDef = subscriptionDef
+                Strategy = Sequential }
         | None ->
             Debug.Fail "Must be prevented by validation"
             failwith "Tried to execute a GraphQL subscription on schema with no mutation type defined"
