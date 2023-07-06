@@ -9,7 +9,7 @@ type internal QueryWeightMiddleware(threshold : float, reportToMetadata : bool) 
     let middleware (threshold : float) (ctx : ExecutionContext) (next : ExecutionContext -> AsyncVal<GQLExecutionResult>) =
         let measureThreshold (threshold : float) (fields : ExecutionInfo list) =
             let getWeight f =
-                if f.ParentDef = upcast ctx.RootDef
+                if f.ParentDef = upcast ctx.ExecutionPlan.RootDef
                 then 0.0
                 else
                     match f.Definition.Metadata.TryFind<float>("queryWeight") with
@@ -47,7 +47,7 @@ type internal QueryWeightMiddleware(threshold : float, reportToMetadata : bool) 
             checkThreshold 0.0 fields
         let error (ctx : ExecutionContext) =
             GQLExecutionResult.ErrorAsync(ctx.ExecutionPlan.DocumentId, "Query complexity exceeds maximum threshold. Please reduce query complexity and try again.", ctx.Metadata)
-        let (pass, totalWeight) = measureThreshold threshold ctx.FieldDefs
+        let (pass, totalWeight) = measureThreshold threshold ctx.ExecutionPlan.Fields
         let ctx =
             match reportToMetadata with
             | true -> { ctx with Metadata = ctx.Metadata.Add("queryWeightThreshold", threshold).Add("queryWeight", totalWeight) }
@@ -106,7 +106,7 @@ type internal ObjectListFilterMiddleware<'ObjectType, 'ListType>(reportToMetadat
         let ctx =
             match reportToMetadata with
             | true ->
-                { ctx with Metadata = ctx.Metadata.Add("filters", collectArgs [] ctx.FieldDefs) }
+                { ctx with Metadata = ctx.Metadata.Add("filters", collectArgs [] ctx.ExecutionPlan.Fields) }
             | false -> ctx
         next ctx
     interface IExecutorMiddleware with

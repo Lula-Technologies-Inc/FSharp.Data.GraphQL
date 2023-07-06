@@ -558,7 +558,7 @@ let private (|String|Other|) (o : obj) =
 let private executeQueryOrMutation (resultSet: (string * ExecutionInfo) []) (ctx: ExecutionContext) (objdef: ObjectDef) (rootValue : obj) : AsyncVal<GQLExecutionResult> =
     let executeRootOperation (name, info) =
         let fDef = info.Definition
-        let argDefs = ctx.FieldExecuteMap.GetArgs(ctx.RootDef.Name, info.Definition.Name)
+        let argDefs = ctx.FieldExecuteMap.GetArgs(ctx.ExecutionPlan.RootDef.Name, info.Definition.Name)
         let args = getArgumentValues argDefs info.Ast.Arguments ctx.Variables
         let path = [ box info.Identifier ]
         let fieldCtx =
@@ -570,7 +570,7 @@ let private executeQueryOrMutation (resultSet: (string * ExecutionInfo) []) (ctx
               Args = args
               Variables = ctx.Variables
               Path = path |> List.rev }
-        let execute = ctx.FieldExecuteMap.GetExecute(ctx.RootDef.Name, info.Definition.Name)
+        let execute = ctx.FieldExecuteMap.GetExecute(ctx.ExecutionPlan.RootDef.Name, info.Definition.Name)
         asyncVal {
             let! result =
                 executeResolvers fieldCtx path rootValue (resolveField execute fieldCtx rootValue)
@@ -660,7 +660,7 @@ let internal coerceVariables (variables: VarDef list) (vars: ImmutableDictionary
 
 let internal executeOperation (ctx : ExecutionContext) : AsyncVal<GQLExecutionResult> =
     let resultSet =
-        ctx.FieldDefs
+        ctx.ExecutionPlan.Fields
         |> List.filter (fun info -> info.Include ctx.Variables)
         |> List.map (fun info -> (info.Identifier, info))
         |> List.toArray
