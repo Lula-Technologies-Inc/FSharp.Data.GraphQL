@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <SystemVersion>6.0.*</SystemVersion>
-    <MicrosoftExtensionsVersion>6.0.*</MicrosoftExtensionsVersion>
+    <SystemVersion>7.0.*</SystemVersion>
+    <MicrosoftExtensionsVersion>7.0.*</MicrosoftExtensionsVersion>
     <AspNetCoreVersion>6.0.*</AspNetCoreVersion>
     <FsToolkitVersion>4.6.*</FsToolkitVersion>
     <XUnitVersion>2.4.2</XUnitVersion>
